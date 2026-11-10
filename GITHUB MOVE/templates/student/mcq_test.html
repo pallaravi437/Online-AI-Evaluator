@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}MCQ Test: {{ assessment.title }} - BEA Online Evaluator{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Header Banner -->
+  <div class="card" style="border-left: 4px solid #38bdf8; margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+          <span class="badge badge-info">{{ assessment.subject_code or 'MEE-105' }}</span>
+          <span class="badge badge-success" style="font-weight: 700; background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8;">⚡ MCQ Test</span>
+          {% if assessment.unit_topic %}
+            <span class="badge badge-warning" style="font-size: 0.75rem;">{{ assessment.unit_topic }}</span>
+          {% endif %}
+          <span class="badge badge-secondary" style="font-size: 0.75rem;">Zero AI Cost • Instant Result</span>
+        </div>
+        <h1 style="font-size: 1.45rem; font-weight: 700; margin: 0; color: #f8fafc;">
+          {{ assessment.title }}
+        </h1>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 0;">
+          Student: <strong style="color: #e2e8f0;">{{ session.get('student_name') }}</strong> (PIN: <strong>{{ session.get('student_pin') }}</strong>)
+        </p>
+      </div>
+
+      <div style="text-align: right; background: rgba(15, 23, 42, 0.8); padding: 0.6rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Total Questions</div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: #38bdf8;">
+          {{ assessment.questions|length }} <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">({{ assessment.max_marks }} Marks)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Question Tracker Navigator Pills & Progress -->
+  <div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1.5rem; background: rgba(15, 23, 42, 0.9);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+          Question Navigator
+        </span>
+        <span style="font-size: 0.75rem; color: #34d399;" id="answeredCountSummary">0 Answered</span>
+        <span style="font-size: 0.75rem; color: #94a3b8;">•</span>
+        <span style="font-size: 0.75rem; color: #fca5a5;" id="unansweredCountSummary">{{ assessment.questions|length }} Remaining</span>
+      </div>
+      <span id="progressSummary" style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">
+        Question 1 of {{ assessment.questions|length }}
+      </span>
+    </div>
+
+    <!-- Clickable Navigation Pills (Green = Answered, Grey = Unanswered, Blue Border = Active) -->
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;" id="navPillsContainer">
+      {% for q in assessment.questions %}
+        <button type="button" 
+                class="nav-pill-btn" 
+                id="navPill_{{ loop.index0 }}" 
+                onclick="goToQuestion({{ loop.index0 }})"
+                style="min-width: 42px; height: 38px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; border: 1px solid var(--border); background: #1e293b; color: #cbd5e1; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+          <span>Q{{ q.question_number or loop.index }}</span>
+          <span class="pill-check" id="pillCheck_{{ loop.index0 }}" style="display: none; font-size: 0.75rem; color: #34d399;">✓</span>
+        </button>
+      {% endfor %}
+    </div>
+
+    <!-- Progress Bar -->
+    <div style="width: 100%; height: 6px; background: #334155; border-radius: 999px; overflow: hidden;">
+      <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #34d399); transition: width 0.3s ease;"></div>
+    </div>
+  </div>
+
+  <!-- Form Wrapping All Questions (One Question Displayed at a Time) -->
+  <form id="mcqTestForm" action="{{ url_for('student.submit_mcq_test', assessment_id=assessment.id) }}" method="POST">
+    <input type="hidden" name="submission_id" value="{{ submission.id }}">
+
+    {% for q in assessment.questions %}
+      {% set q_idx = loop.index0 %}
+      <div class="card question-card" 
+           id="questionCard_{{ q_idx }}" 
+           style="{% if not loop.first %}display: none;{% endif %} padding: 2rem; border-top: 4px solid #38bdf8; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); margin-bottom: 1.5rem;">
+        
+        <!-- Question Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <span class="badge badge-primary" style="font-size: 0.9rem; padding: 0.35rem 0.75rem; font-weight: 700;">
+              Question {{ q.question_number or loop.index }}
+            </span>
+            <span style="font-weight: 700; color: #34d399; font-size: 0.95rem;">
+              [{{ q.max_marks }} Mark{% if q.max_marks > 1 %}s{% endif %}]
+            </span>
+            {% if q.unit_topic %}
+              <span class="badge badge-secondary" style="font-size: 0.75rem;">{{ q.unit_topic }}</span>
+            {% endif %}
+          </div>
+          <div>
+            <span id="answeredBadge_{{ q_idx }}" class="badge badge-warning" style="font-size: 0.75rem;">
+              Unanswered
+            </span>
+          </div>
+        </div>
+
+        <!-- Question Statement -->
+        <div style="font-size: 1.15rem; font-weight: 600; line-height: 1.6; color: #f8fafc; margin-bottom: 1.5rem; background: #0f172a; padding: 1.25rem; border-radius: var(--radius-sm); border-left: 4px solid #38bdf8;">
+          {{ q.question_text }}
+        </div>
+
+        <!-- Optional Attached Circuit Diagram / Problem Reference Figure -->
+        {% if q.question_image_url %}
+          <div style="text-align: center; margin-bottom: 1.5rem; background: #0b1120; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem;">
+            <div style="font-size: 0.8rem; color: #38bdf8; font-weight: 600; margin-bottom: 0.5rem; text-align: left;">
+              📸 Circuit Diagram / Reference Figure:
+            </div>
+            <img src="{{ q.question_image_url }}" alt="Circuit Reference for Question {{ q.question_number }}" style="max-width: 100%; max-height: 300px; border-radius: var(--radius-sm);">
+          </div>
+        {% endif %}
+
+        <!-- Options Container (Only 1 Selectable) -->
+        <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 2rem;">
+          {% set options_list = [('A', q.option_a), ('B', q.option_b), ('C', q.option_c), ('D', q.option_d)] %}
+          {% for opt_key, opt_text in options_list %}
+            {% if opt_text %}
+              <label class="option-label" 
+                     id="label_{{ q_idx }}_{{ opt_key }}"
+                     onclick="handleOptionSelect({{ q_idx }}, '{{ opt_key }}')"
+                     style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; background: #1e293b; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s ease;">
+                <input type="radio" 
+                       name="mcq_answer_{{ q.id }}" 
+                       value="{{ opt_key }}"
+                       id="radio_{{ q_idx }}_{{ opt_key }}"
+                       style="transform: scale(1.3); cursor: pointer; accent-color: #38bdf8;">
+                <span class="option-prefix" style="min-width: 28px; height: 28px; border-radius: 50%; background: #334155; color: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;">
+                  {{ opt_key }}
+                </span>
+                <span style="font-size: 1rem; color: #e2e8f0; line-height: 1.4;">
+                  {{ opt_text }}
+                </span>
+              </label>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <!-- Navigation Buttons per Question -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 1.25rem;">
+          <div>
+            {% if not loop.first %}
+              <button type="button" class="btn btn-secondary" onclick="goToQuestion({{ q_idx - 1 }})" style="font-weight: 600;">
+                ← Previous
+              </button>
+            {% endif %}
+          </div>
+
+          <div style="display: flex; gap: 0.75rem;">
+            {% if not loop.last %}
+              <button type="button" class="btn btn-primary" onclick="goToQuestion({{ q_idx + 1 }})" style="font-weight: 600; padding: 0.5rem 1.5rem;">
+                Next →
+              </button>
+            {% else %}
+              <button type="button" class="btn btn-success" onclick="openReviewModal()" style="font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border: none; padding: 0.6rem 1.75rem; box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.4);">
+                Review & Submit Test 🚀
+              </button>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    {% endfor %}
+
+    <!-- Submission Review Modal -->
+    <div id="review-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+      <div class="card" style="max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; background: var(--bg-card); border: 2px solid var(--border);">
+        <div class="card-header">
+          <h3 class="card-title">📝 Review Before Final Submission</h3>
+          <button type="button" onclick="closeReviewModal()" class="btn btn-sm btn-secondary">&times;</button>
+        </div>
+
+        <div style="padding: 1rem 0;">
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;">
+            Please verify your answers before submitting. Once submitted, your score and detailed answer explanations will be computed automatically and displayed instantly.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; border-radius: 8px; padding: 1rem; text-align: center;">
+              <div style="font-size: 0.8rem; color: #34d399; text-transform: uppercase; font-weight: 600;">Answered</div>
+              <div style="font-size: 2rem; font-weight: 800; color: #34d399;" id="modalAnsweredCount">0</div>
+            </div>
+            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 8px; padding: 1rem; text-align: center;">
+              <div style="font-size: 0.8rem; color: #fca5a5; text-transform: uppercase; font-weight: 600;">Unanswered</div>
+              <div style="font-size: 2rem; font-weight: 800; color: #fca5a5;" id="modalUnansweredCount">{{ assessment.questions|length }}</div>
+            </div>
+          </div>
+
+          <div id="unansweredWarning" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1.25rem;">
+            ⚠️ You still have unanswered questions! You can go back to complete them or submit anyway.
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <button type="button" class="btn btn-secondary" onclick="closeReviewModal()">
+              ← Go Back to Test
+            </button>
+            <button type="submit" id="finalSubmitBtn" class="btn btn-success" style="font-weight: 700; background: #059669; border: none;">
+              ✓ Confirm & Submit Test
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </form>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const totalQuestions = {{ assessment.questions | length }};
+  let currentQIndex = 0;
+  const answeredState = new Array(totalQuestions).fill(null);
+
+  function goToQuestion(idx) {
+    if (idx < 0 || idx >= totalQuestions) return;
+
+    // Hide all question cards
+    for (let i = 0; i < totalQuestions; i++) {
+      const card = document.getElementById(`questionCard_${i}`);
+      if (card) card.style.display = 'none';
+
+      const pill = document.getElementById(`navPill_${i}`);
+      if (pill) {
+        pill.style.borderColor = answeredState[i] ? '#10b981' : 'var(--border)';
+        pill.style.boxShadow = 'none';
+      }
+    }
+
+    // Show target card
+    const targetCard = document.getElementById(`questionCard_${idx}`);
+    if (targetCard) targetCard.style.display = 'block';
+
+    // Highlight active pill
+    const activePill = document.getElementById(`navPill_${idx}`);
+    if (activePill) {
+      activePill.style.borderColor = '#38bdf8';
+      activePill.style.boxShadow = '0 0 10px rgba(56, 189, 248, 0.4)';
+    }
+
+    currentQIndex = idx;
+    document.getElementById("progressSummary").textContent = `Question ${idx + 1} of ${totalQuestions}`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function handleOptionSelect(qIdx, optKey) {
+    answeredState[qIdx] = optKey;
+
+    // Visual styles for options
+    ['A', 'B', 'C', 'D'].forEach(k => {
+      const lbl = document.getElementById(`label_${qIdx}_${k}`);
+      if (lbl) {
+        if (k === optKey) {
+          lbl.style.background = 'rgba(56, 189, 248, 0.15)';
+          lbl.style.borderColor = '#38bdf8';
+        } else {
+          lbl.style.background = '#1e293b';
+          lbl.style.borderColor = 'var(--border)';
+        }
+      }
+    });
+
+    // Update pill
+    const pill = document.getElementById(`navPill_${qIdx}`);
+    const check = document.getElementById(`pillCheck_${qIdx}`);
+    if (pill) {
+      pill.style.background = '#064e3b';
+      pill.style.color = '#34d399';
+    }
+    if (check) check.style.display = 'inline';
+
+    // Update badge on question card
+    const badge = document.getElementById(`answeredBadge_${qIdx}`);
+    if (badge) {
+      badge.textContent = `Answered: Option ${optKey}`;
+      badge.className = 'badge badge-success';
+    }
+
+    updateOverallProgress();
+  }
+
+  function updateOverallProgress() {
+    const answeredCount = answeredState.filter(x => x !== null).length;
+    const unansweredCount = totalQuestions - answeredCount;
+    const pct = Math.round((answeredCount / totalQuestions) * 100);
+
+    const progressBar = document.getElementById("progressBar");
+    if (progressBar) progressBar.style.width = `${pct}%`;
+
+    const ansSum = document.getElementById("answeredCountSummary");
+    const unansSum = document.getElementById("unansweredCountSummary");
+    if (ansSum) ansSum.textContent = `${answeredCount} Answered`;
+    if (unansSum) unansSum.textContent = `${unansweredCount} Remaining`;
+  }
+
+  function openReviewModal() {
+    const answeredCount = answeredState.filter(x => x !== null).length;
+    const unansweredCount = totalQuestions - answeredCount;
+
+    document.getElementById("modalAnsweredCount").textContent = answeredCount;
+    document.getElementById("modalUnansweredCount").textContent = unansweredCount;
+
+    const warnBox = document.getElementById("unansweredWarning");
+    if (warnBox) warnBox.style.display = (unansweredCount > 0) ? 'block' : 'none';
+
+    document.getElementById("review-modal").style.display = 'flex';
+  }
+
+  function closeReviewModal() {
+    document.getElementById("review-modal").style.display = 'none';
+  }
+
+  // Initialize first question on load
+  document.addEventListener("DOMContentLoaded", function() {
+    goToQuestion(0);
+    updateOverallProgress();
+  });
+</script>
+{% endblock %}
+

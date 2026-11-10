@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Evaluation Results - {{ assessment.title }}{% endblock %}
+
+{% block content %}
+<div class="card" style="border-left: 4px solid var(--primary); margin-bottom: 2rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <span class="badge badge-info">{{ assessment.subject_code }}</span>
+      <h1 style="font-size: 1.6rem; font-weight: 700; margin-top: 0.35rem;">{{ assessment.title }} - Official Evaluation</h1>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">
+        Student: <strong>{{ session.get('student_name') }}</strong> ({{ session.get('student_pin') }})
+      </p>
+    </div>
+
+    <!-- Score Card -->
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <div style="text-align: right;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Official Total Score</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: #34d399;">
+          {{ submission.official_total_marks if submission.official_total_marks is not none else submission.ai_total_marks or 0.0 }}
+          <span style="font-size: 1rem; color: var(--text-muted); font-weight: 400;">/ {{ assessment.max_marks }}</span>
+        </div>
+      </div>
+
+      <div>
+        {% if submission.pass_status == 'pass' or (submission.percentage and submission.percentage >= assessment.pass_percentage) %}
+          <span class="badge badge-success" style="font-size: 1rem; padding: 0.5rem 1rem;">PASS ✓</span>
+        {% else %}
+          <span class="badge badge-danger" style="font-size: 1rem; padding: 0.5rem 1rem;">FAIL</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Question-by-Question Transparent Breakdown -->
+<div class="card-header">
+  <h2 class="card-title">🔍 Question-Wise Evaluation Breakdown & Rubric</h2>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2.5rem;">
+  {% for q in assessment.questions %}
+    {% set q_id = q.id %}
+    {% set ev = evaluations.get(q_id, {}) %}
+    {% set rc = rechecks.get(q_id) %}
+
+    <div class="card" style="background: rgba(30, 41, 59, 0.85);">
+      <div class="card-header">
+        <div>
+          <span class="badge badge-primary">Question {{ q.question_number }}</span>
+          <span style="font-weight: 600; margin-left: 0.5rem;">{{ q.question_text }}</span>
+        </div>
+
+        <div style="text-align: right;">
+          <span style="font-size: 1.15rem; font-weight: 700; color: #34d399;">
+            {{ ev.approved_marks if ev.approved_marks is not none else ev.ai_marks_awarded or '—' }}
+          </span>
+          <span style="color: var(--text-muted); font-size: 0.85rem;">/ {{ q.max_marks }} Marks</span>
+        </div>
+      </div>
+
+      <!-- Attached Reference Figure / Circuit for this Question -->
+      {% if q.question_image_url %}
+        <div style="margin-bottom: 1rem; background: #0b1120; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.75rem; text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--secondary); font-weight: 600; margin-bottom: 0.35rem; text-align: left;">
+            📸 Problem Reference Figure / Diagram:
+          </div>
+          <a href="{{ q.question_image_url }}" target="_blank" title="Click to view full reference figure in new tab">
+            <img src="{{ q.question_image_url }}" alt="Figure for Question {{ q.question_number }}" style="max-width: 100%; max-height: 240px; border-radius: var(--radius-sm); object-fit: contain;">
+          </a>
+        </div>
+      {% endif %}
+
+      {% if ev %}
+        {% if q.question_type == 'mcq' or q.option_a %}
+          <!-- MCQ Slip Test Result Breakdown -->
+          {% set student_choice = ev.student_selected_option or '' %}
+          {% set correct_opt = ev.correct_option or q.correct_option or 'A' %}
+          {% set is_correct = ev.is_correct if ev.is_correct is defined else (student_choice == correct_opt) %}
+
+          <div style="margin-bottom: 1.25rem;">
+            <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
+              {% if is_correct %}
+                <span class="badge badge-success" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+                  ✓ Correct Answer (+{{ ev.approved_marks or ev.ai_marks_awarded or q.max_marks }} Marks)
+                </span>
+              {% else %}
+                <span class="badge badge-danger" style="font-size: 0.9rem; padding: 0.4rem 0.8rem;">
+                  ✗ Incorrect (0 / {{ q.max_marks }} Marks)
+                </span>
+              {% endif %}
+              <span style="font-size: 0.85rem; color: var(--text-muted);">
+                Your Selection: <strong>Option {{ student_choice or 'None' }}</strong> | Correct Key: <strong>Option {{ correct_opt }}</strong>
+              </span>
+            </div>
+
+            <!-- 4 Options Grid -->
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+              {% set options_list = [('A', q.option_a), ('B', q.option_b), ('C', q.option_c), ('D', q.option_d)] %}
+              {% for opt_key, opt_text in options_list %}
+                {% set is_selected = (student_choice == opt_key) %}
+                {% set is_this_correct = (correct_opt == opt_key) %}
+                
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.15rem; border-radius: var(--radius-sm); border: 2px solid {% if is_selected and is_this_correct %}#10b981{% elif is_selected and not is_this_correct %}#ef4444{% elif is_this_correct %}#059669{% else %}#334155{% endif %}; background: {% if is_selected and is_this_correct %}rgba(16, 185, 129, 0.15){% elif is_selected and not is_this_correct %}rgba(239, 68, 68, 0.15){% elif is_this_correct %}rgba(5, 150, 105, 0.1){% else %}#1e293b{% endif %};">
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; background: {% if is_this_correct %}#10b981{% elif is_selected %}#ef4444{% else %}#334155{% endif %}; color: #ffffff;">
+                      {{ opt_key }}
+                    </span>
+                    <span style="font-size: 0.95rem; color: #f1f5f9;">{{ opt_text or '—' }}</span>
+                  </div>
+
+                  <div>
+                    {% if is_selected and is_this_correct %}
+                      <span class="badge badge-success" style="font-size: 0.75rem;">✓ Your Answer (Correct)</span>
+                    {% elif is_selected and not is_this_correct %}
+                      <span class="badge badge-danger" style="font-size: 0.75rem;">✗ Your Answer (Incorrect)</span>
+                    {% elif is_this_correct %}
+                      <span class="badge badge-success" style="font-size: 0.75rem; background: transparent; border: 1px solid #10b981; color: #34d399;">✓ Correct Answer Key</span>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Technical Explanation & Model Answer -->
+          <div style="background: rgba(14, 165, 233, 0.08); border-left: 4px solid #38bdf8; padding: 1rem 1.25rem; border-radius: var(--radius-sm); margin-top: 1rem;">
+            <div style="font-weight: 700; color: #38bdf8; font-size: 0.9rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span>💡</span> Proper Technical Explanation:
+            </div>
+            <div style="color: #e2e8f0; font-size: 0.9rem; line-height: 1.6;">
+              {{ q.model_answer or ev.explanation or 'Comprehensive technical explanation for this curriculum standard.' }}
+            </div>
+          </div>
+
+        {% else %}
+          <!-- Descriptive Script Rubric Breakdown (Evaluated by AI) -->
+          {% if ev.ai_criterion_breakdown %}
+            <div class="table-responsive" style="margin-bottom: 1rem;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Rubric Criterion</th>
+                    <th style="width: 140px;">Marks Awarded</th>
+                    <th>Evaluator Assessment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for c in ev.ai_criterion_breakdown %}
+                    <tr>
+                      <td><strong>{{ c.title }}</strong></td>
+                      <td style="color: #34d399; font-weight: 600;">{{ c.marks_awarded }} / {{ c.max_marks }}</td>
+                      <td style="color: var(--text-muted); font-size: 0.85rem;">{{ c.comment }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+
+          <!-- Concept Badges Grid -->
+          <div class="grid grid-2" style="margin-bottom: 1rem;">
+            <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--success); padding: 0.75rem 1rem; border-radius: var(--radius-sm);">
+              <strong style="color: #6ee7b7; font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">✓ Correct Concepts Recognized:</strong>
+              <ul style="padding-left: 1.25rem; font-size: 0.8rem; color: #d1fae5;">
+                {% for cc in ev.ai_correct_concepts %}
+                  <li>{{ cc }}</li>
+                {% else %}
+                  <li>Standard conceptual framework verified.</li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid var(--danger); padding: 0.75rem 1rem; border-radius: var(--radius-sm);">
+              <strong style="color: #fca5a5; font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">⚠️ Missing Concepts / Technical Omissions:</strong>
+              <ul style="padding-left: 1.25rem; font-size: 0.8rem; color: #fee2e2;">
+                {% for mc in ev.ai_missing_concepts %}
+                  <li>{{ mc }}</li>
+                {% else %}
+                  <li>No critical conceptual omissions.</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+
+          <!-- Student Feedback -->
+          {% if ev.ai_student_feedback %}
+            <div style="background: #0f172a; padding: 0.85rem 1rem; border-radius: var(--radius-sm); font-size: 0.85rem; color: #e2e8f0; margin-bottom: 1rem;">
+              💬 <strong>Examiner Feedback:</strong> {{ ev.ai_student_feedback }}
+            </div>
+          {% endif %}
+
+          <!-- Recheck Objection Section -->
+          <div style="border-top: 1px solid var(--border); padding-top: 0.85rem; margin-top: 0.5rem;">
+            {% if rc %}
+              <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); padding: 0.75rem 1rem; border-radius: var(--radius-sm);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                  <span style="font-weight: 600; color: #fbbf24; font-size: 0.85rem;">Objection Filed:</span>
+                  <span class="badge badge-warning">{{ rc.status | upper }}</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+                  <strong>Reason:</strong> {{ rc.student_objection_reason }}
+                </p>
+                {% if rc.lecturer_resolution_comment %}
+                  <p style="font-size: 0.8rem; color: #6ee7b7;">
+                    <strong>Lecturer Decision:</strong> {{ rc.lecturer_resolution_comment }}
+                  </p>
+                {% endif %}
+              </div>
+            {% else %}
+              <details style="font-size: 0.85rem;">
+                <summary style="cursor: pointer; color: var(--secondary); font-weight: 500;">
+                  🙋 Disagree with evaluation? Raise a Recheck Objection
+                </summary>
+                <form action="{{ url_for('student.submit_recheck') }}" method="POST" style="margin-top: 0.75rem;">
+                  <input type="hidden" name="submission_id" value="{{ submission.id }}">
+                  <input type="hidden" name="question_id" value="{{ q_id }}">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size: 0.8rem;">Explain specifically why this question warrants re-evaluation:</label>
+                    <textarea name="reason" class="form-control" rows="2" placeholder="e.g. My calculation in step 3 used the standard CE formula β = 190 which matches the model answer." required></textarea>
+                  </div>
+                  <button type="submit" class="btn btn-warning btn-sm">Submit Recheck Request</button>
+                </form>
+              </details>
+            {% endif %}
+          </div>
+        {% endif %}
+
+      {% else %}
+        <p style="color: var(--text-muted); font-size: 0.85rem;">
+          Evaluation is pending lecturer verification.
+        </p>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

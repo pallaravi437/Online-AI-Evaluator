@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Answer Script - {{ assessment.title }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <span class="badge badge-info">{{ assessment.subject_code }}</span>
+      <h1 style="font-size: 1.5rem; font-weight: 700; margin-top: 0.35rem;">{{ assessment.title }}</h1>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">
+        Total Marks: <strong>{{ assessment.max_marks }}</strong> • Max Upload Size per Page: <strong>10 MB</strong> (Automatically optimized)
+      </p>
+    </div>
+
+    <div>
+      <span class="badge badge-warning" id="draft-status-badge">
+        Draft Mode • Editing Unlocked
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Instructions Card -->
+<div class="card" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-left: 4px solid var(--secondary);">
+  <h4 style="font-size: 1rem; font-weight: 700; color: var(--secondary); margin-bottom: 0.5rem;">
+    📸 Slip Test Handwritten Script Guidelines:
+  </h4>
+  <ul style="padding-left: 1.25rem; font-size: 0.88rem; color: #cbd5e1; line-height: 1.7; margin-bottom: 0;">
+    <li>Write your answers neatly on clean sheets of paper.</li>
+    <li>Draw clear labeled circuit diagrams with proper terminal current directions (IB, IC, IE) and polarities.</li>
+    <li>Use <strong>📸 Take Photo (Camera)</strong> or <strong>📁 Choose File</strong> to capture pages per question. Multiple pages per question are supported.</li>
+    <li>Use the <strong>Crop & Rotate</strong> tool to align and crop pages before saving. Images are compressed automatically.</li>
+    <li>Click <strong>SUBMIT ANSWERS</strong> once you finish all questions. Evaluation will run only after final submission.</li>
+  </ul>
+</div>
+
+<!-- Question-wise Upload Sections -->
+<div style="display: flex; flex-direction: column; gap: 1.5rem;">
+  {% for q in assessment.questions %}
+    {% set q_id = q.id %}
+    {% set uploaded_pages = question_pages.get(q_id, []) %}
+    <div class="card" id="card-q-{{ q.question_number }}" style="border-top: 3px solid var(--secondary);">
+      <div class="card-header">
+        <div>
+          <span class="badge badge-primary">Question {{ q.question_number }}</span>
+          <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 0.5rem;">
+            [Max Marks: {{ q.max_marks }}]
+          </span>
+          {% if q.requires_diagram %}
+            <span class="badge badge-warning" style="margin-left: 0.5rem;">Requires Circuit Diagram</span>
+          {% endif %}
+        </div>
+
+        <div>
+          <span class="badge badge-secondary" id="page-count-badge-{{ q_id }}">
+            {{ uploaded_pages | length }} Page(s) Uploaded
+          </span>
+        </div>
+      </div>
+
+      <!-- Question Text -->
+      <div style="font-size: 1rem; color: var(--text-main); margin-bottom: 1rem; background: #0f172a; padding: 1rem; border-radius: var(--radius-sm); border-left: 3px solid var(--primary);">
+        {{ q.question_text }}
+      </div>
+
+      <!-- Attached Reference Circuit / Figure for this Question -->
+      {% if q.question_image_url %}
+        <div style="margin-bottom: 1.25rem; text-align: center; background: #0b1120; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.85rem;">
+          <div style="font-size: 0.8rem; color: var(--secondary); font-weight: 600; margin-bottom: 0.5rem; text-align: left;">
+            📸 Given Circuit Diagram / Problem Reference Figure:
+          </div>
+          <img src="{{ q.question_image_url }}" alt="Circuit Reference for Question {{ q.question_number }}" style="max-width: 100%; max-height: 320px; border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+        </div>
+      {% endif %}
+
+      <!-- MCQ 4 Options Radio Selector -->
+      {% if q.question_type == 'mcq' or q.option_a %}
+        <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.25rem;">
+          <strong style="color: #38bdf8; font-size: 0.95rem; display: block; margin-bottom: 0.85rem;">
+            🔘 Select Your Answer (Choose One Option):
+          </strong>
+          <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+            {% if q.option_a %}
+              <label style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem; background: #0b1120; padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); transition: border-color 0.2s;">
+                <input type="radio" name="mcq_answer_{{ q_id }}" value="A" form="finalize-submission-form" style="transform: scale(1.2);">
+                <strong style="color: var(--secondary); min-width: 24px;">(A)</strong>
+                <span style="color: #e2e8f0; font-size: 0.92rem;">{{ q.option_a }}</span>
+              </label>
+            {% endif %}
+            {% if q.option_b %}
+              <label style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem; background: #0b1120; padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); transition: border-color 0.2s;">
+                <input type="radio" name="mcq_answer_{{ q_id }}" value="B" form="finalize-submission-form" style="transform: scale(1.2);">
+                <strong style="color: var(--secondary); min-width: 24px;">(B)</strong>
+                <span style="color: #e2e8f0; font-size: 0.92rem;">{{ q.option_b }}</span>
+              </label>
+            {% endif %}
+            {% if q.option_c %}
+              <label style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem; background: #0b1120; padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); transition: border-color 0.2s;">
+                <input type="radio" name="mcq_answer_{{ q_id }}" value="C" form="finalize-submission-form" style="transform: scale(1.2);">
+                <strong style="color: var(--secondary); min-width: 24px;">(C)</strong>
+                <span style="color: #e2e8f0; font-size: 0.92rem;">{{ q.option_c }}</span>
+              </label>
+            {% endif %}
+            {% if q.option_d %}
+              <label style="cursor: pointer; display: flex; align-items: center; gap: 0.75rem; background: #0b1120; padding: 0.75rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); transition: border-color 0.2s;">
+                <input type="radio" name="mcq_answer_{{ q_id }}" value="D" form="finalize-submission-form" style="transform: scale(1.2);">
+                <strong style="color: var(--secondary); min-width: 24px;">(D)</strong>
+                <span style="color: #e2e8f0; font-size: 0.92rem;">{{ q.option_d }}</span>
+              </label>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Upload Actions Bar -->
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center;">
+        {% if assessment.assessment_type == 'mcq_test' %}
+          <small style="color: var(--text-muted); font-size: 0.8rem; width: 100%; margin-bottom: 0.25rem;">
+            (Optional: Upload rough calculation or circuit verification script)
+          </small>
+        {% endif %}
+        <!-- In-App Camera Capture Trigger (opens live camera preview) -->
+        <button type="button" class="btn btn-primary btn-sm" onclick="openCamera('{{ q_id }}', '{{ q.question_number }}')">
+          📸 Take Photo (Camera)
+        </button>
+
+        <!-- Fallback native camera/file picker (used if browser camera API is unavailable) -->
+        <input type="file" id="camera-fallback-{{ q_id }}" accept="image/*" capture="environment" style="display: none;" onchange="handleFileSelect(event, '{{ q_id }}', '{{ q.question_number }}')">
+
+        <!-- Standard File / PDF Upload Trigger -->
+        <label class="btn btn-secondary btn-sm" style="cursor: pointer;">
+          📁 Choose File / Scan / PDF
+          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" style="display: none;" onchange="handleFileSelect(event, '{{ q_id }}', '{{ q.question_number }}')">
+        </label>
+      </div>
+
+      <!-- Page Previews Container for this Question -->
+      <div id="pages-container-{{ q_id }}" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        {% for p in uploaded_pages %}
+          <div class="page-thumb-card" id="page-thumb-{{ p.id }}" style="background: #0f172a; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem; width: 160px; text-align: center;">
+            <div style="height: 120px; background: #1e293b; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem; overflow: hidden;">
+              <span style="font-size: 2rem;">📄</span>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+              Page {{ p.page_number }}
+            </div>
+            <div style="font-size: 0.7rem; color: #34d399;">
+              ✓ {{ (p.optimized_size_bytes / 1024) | round(1) }} KB
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Interactive Canvas Modal for Crop & Rotate -->
+<div id="editor-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto; background: var(--bg-card);">
+    <div class="card-header">
+      <h3 class="card-title">📐 Crop, Rotate & Optimize Script Page</h3>
+      <button onclick="closeEditorModal()" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <!-- Canvas Container -->
+    <div style="text-align: center; background: #0f172a; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; max-height: 50vh; overflow: auto;">
+      <canvas id="editor-canvas" style="max-width: 100%; height: auto; border: 1px dashed #64748b;"></canvas>
+    </div>
+
+    <!-- Controls Toolbar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="rotateCanvas(-90)">↺ Rotate 90° Left</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="rotateCanvas(90)">↻ Rotate 90° Right</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="autoDetectEdges()">✨ Auto Straighten</button>
+      </div>
+
+      <!-- Size Preview -->
+      <div style="font-size: 0.85rem; color: var(--text-muted);" id="size-preview-info">
+        Original: <span id="orig-size-label">—</span> • Target: <span id="opt-size-label">~350 KB</span>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+      <button type="button" class="btn btn-secondary" onclick="closeEditorModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="confirm-save-page-btn" onclick="uploadProcessedPage()">
+        ✓ Save Page & Compress
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Live Camera Capture Modal -->
+<div id="camera-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 1100; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 720px; width: 100%; max-height: 92vh; overflow-y: auto; background: var(--bg-card);">
+    <div class="card-header">
+      <h3 class="card-title">📸 Capture Answer Script Page</h3>
+      <button type="button" onclick="closeCamera()" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <div style="text-align: center; background: #000; padding: 0.5rem; border-radius: var(--radius-md); margin-bottom: 1rem; position: relative;">
+      <video id="camera-video" autoplay playsinline muted style="width: 100%; max-height: 55vh; display: block; border-radius: var(--radius-sm); background: #000;"></video>
+
+      <div id="camera-error" style="display: none; padding: 2rem 1rem; color: #f87171; font-size: 0.9rem; line-height: 1.6;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚠️</div>
+        <div id="camera-error-msg">Camera unavailable.</div>
+        <div style="margin-top: 1rem; display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="retryCamera()">🔄 Try Again</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="useFallbackPicker()">📁 Upload Instead</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="flipCamera()">🔄 Flip Camera</button>
+      </div>
+      <div style="font-size: 0.8rem; color: var(--text-muted);">
+        Align the page inside the frame, then tap <strong>Capture</strong>.
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+      <button type="button" class="btn btn-secondary" onclick="closeCamera()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="capture-photo-btn" onclick="capturePhoto()">📸 Capture</button>
+    </div>
+  </div>
+</div>
+
+<!-- Final Submission Confirmation Card -->
+<div class="card" style="border: 2px solid var(--primary); text-align: center; padding: 2rem; margin-top: 2rem;">
+  <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem;">Ready to Finalize Your Submission?</h3>
+  <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto 1.5rem auto;">
+    Once you click <strong>SUBMIT ANSWERS</strong>, your submission will be strictly locked in the Supabase database. You will immediately receive your official timestamped receipt with Asia/Kolkata date and time.
+  </p>
+
+  <form id="finalize-submission-form" action="{{ url_for('student.finalize_submission') }}" method="POST" onsubmit="return confirmFinalSubmission()">
+    <input type="hidden" name="submission_id" value="{{ submission.id }}">
+    <button type="submit" class="btn btn-success btn-lg" style="box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.4);">
+      🚀 SUBMIT ANSWERS (Lock & Get Receipt)
+    </button>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/student_upload.js') }}"></script>
+<script>
+  const CURRENT_SUBMISSION_ID = "{{ submission.id }}";
+  function confirmFinalSubmission() {
+    return confirm("Are you sure you want to finalize your submission? Your script will be locked for evaluation and cannot be altered.");
+  }
+</script>
+{% endblock %}

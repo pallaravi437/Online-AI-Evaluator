@@ -1,0 +1,599 @@
+{% extends "base.html" %}
+
+{% block title %}Syllabus & Course Materials - Online Evaluator{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="card-header" style="flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+  <div>
+    <h1 class="card-title">📚 Course Syllabus & Materials Repository</h1>
+    <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 0.35rem;">
+      Upload syllabi, lecture notes, formula sheets, and reference handouts in <strong>PDF</strong>, <strong>Word (.docx)</strong>, or <strong>Images</strong>.
+      Our AI extracts structured units, formulas, and definitions to strictly ground <strong>Question Generation</strong> and <strong>Answer Script Grading</strong>.
+    </p>
+  </div>
+  <button onclick="openUploadModal()" class="btn btn-primary" style="font-size: 0.95rem; font-weight: 700; padding: 0.6rem 1.4rem; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">
+    + UPLOAD SYLLABUS / MATERIAL
+  </button>
+</div>
+
+<!-- Key Stat Counters -->
+<div class="grid grid-4" style="margin-bottom: 1.5rem; gap: 1rem;">
+  <div class="card" style="padding: 1rem 1.25rem; border-left: 4px solid #6366f1; background: #0f172a;">
+    <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Total Materials</div>
+    <div style="font-size: 1.75rem; font-weight: 800; color: #818cf8; margin-top: 0.25rem;">{{ stats.total }}</div>
+    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Indexed documents</div>
+  </div>
+  <div class="card" style="padding: 1rem 1.25rem; border-left: 4px solid #38bdf8; background: #0f172a;">
+    <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Course Syllabi</div>
+    <div style="font-size: 1.75rem; font-weight: 800; color: #38bdf8; margin-top: 0.25rem;">{{ stats.syllabus }}</div>
+    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Curriculum guides</div>
+  </div>
+  <div class="card" style="padding: 1rem 1.25rem; border-left: 4px solid #10b981; background: #0f172a;">
+    <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Lecture Notes</div>
+    <div style="font-size: 1.75rem; font-weight: 800; color: #34d399; margin-top: 0.25rem;">{{ stats.notes }}</div>
+    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">Lecturer presentations & notes</div>
+  </div>
+  <div class="card" style="padding: 1rem 1.25rem; border-left: 4px solid #f59e0b; background: #0f172a;">
+    <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Formulas & Defs</div>
+    <div style="font-size: 1.75rem; font-weight: 800; color: #fbbf24; margin-top: 0.25rem;">{{ stats.formulas + stats.definitions }}</div>
+    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">{{ stats.formulas }} formulas, {{ stats.definitions }} definitions</div>
+  </div>
+</div>
+
+<!-- Filter Toolbar -->
+<div class="card" style="padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; background: #0b1120; border: 1px solid var(--border);">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+      <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Filter:</span>
+      <button class="btn btn-sm btn-filter active" onclick="filterMaterials('all', this)">All ({{ materials|length }})</button>
+      <button class="btn btn-sm btn-filter" onclick="filterMaterials('syllabus', this)">📘 Syllabus</button>
+      <button class="btn btn-sm btn-filter" onclick="filterMaterials('lecture_notes', this)">📝 Lecture Notes</button>
+      <button class="btn btn-sm btn-filter" onclick="filterMaterials('reference_material', this)">📑 Reference Sheets</button>
+    </div>
+    <div>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">
+        ⚡ All materials are structured into JSON for high-speed AI retrieval
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Materials Cards Grid -->
+{% if materials %}
+  <div class="grid grid-2" id="materials-grid" style="gap: 1.25rem; margin-bottom: 2rem;">
+    {% for mat in materials %}
+      {% set sc = mat.structured_content or {} %}
+      <div class="card material-item" data-type="{{ mat.material_type }}" style="display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid {% if mat.material_type == 'syllabus' %}#38bdf8{% elif mat.material_type == 'lecture_notes' %}#10b981{% else %}#f59e0b{% endif %}; background: #0f172a; position: relative;">
+        
+        <div>
+          <!-- Top Badges -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 0.5rem;">
+            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+              {% if mat.material_type == 'syllabus' %}
+                <span class="badge" style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; color: #38bdf8; font-weight: 700;">
+                  📘 SYLLABUS
+                </span>
+              {% elif mat.material_type == 'lecture_notes' %}
+                <span class="badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; font-weight: 700;">
+                  📝 LECTURE NOTES
+                </span>
+              {% else %}
+                <span class="badge" style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fbbf24; font-weight: 700;">
+                  📑 {{ mat.material_type|replace('_', ' ')|upper }}
+                </span>
+              {% endif %}
+
+              {% if mat.subject_code %}
+                <span class="badge badge-secondary" style="font-size: 0.75rem;">{{ mat.subject_code }}</span>
+              {% endif %}
+              {% if mat.unit_topic %}
+                <span class="badge" style="background: rgba(147, 51, 234, 0.15); border: 1px solid #9333ea; color: #c084fc; font-size: 0.75rem;">{{ mat.unit_topic }}</span>
+              {% endif %}
+            </div>
+
+            <span class="badge badge-secondary" style="font-size: 0.72rem; text-transform: uppercase;">
+              {{ mat.file_type|replace('.', '') }} • {{ mat.file_size_kb }} KB
+            </span>
+          </div>
+
+          <!-- Title -->
+          <h3 style="font-size: 1.15rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; line-height: 1.35;">
+            {{ mat.title }}
+          </h3>
+
+          <!-- Summary Snippet -->
+          {% if sc.get('summary') %}
+            <p style="color: #94a3b8; font-size: 0.85rem; line-height: 1.45; margin-bottom: 0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+              {{ sc.summary }}
+            </p>
+          {% endif %}
+
+          <!-- Structured Intelligence Chips -->
+          <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem;">
+            {% if sc.get('units') %}
+              <span class="badge" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd; font-size: 0.75rem;">
+                📌 {{ sc.units|length }} Units / Modules
+              </span>
+            {% endif %}
+            {% if sc.get('topics') %}
+              <span class="badge" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); color: #a5b4fc; font-size: 0.75rem;">
+                🔖 {{ sc.topics|length }} Topics
+              </span>
+            {% endif %}
+            {% if sc.get('key_formulas') %}
+              <span class="badge" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #fcd34d; font-size: 0.75rem;">
+                🧪 {{ sc.key_formulas|length }} Formulas
+              </span>
+            {% endif %}
+            {% if sc.get('key_definitions') %}
+              <span class="badge" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #6ee7b7; font-size: 0.75rem;">
+                📖 {{ sc.key_definitions|length }} Definitions
+              </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 0.85rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <div style="display: flex; gap: 0.5rem;">
+            <button onclick="viewMaterial('{{ mat.id }}')" class="btn btn-secondary btn-sm" style="font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
+              <span>🔍</span> View Structure
+            </button>
+            <a href="{{ url_for('teacher.download_material', material_id=mat.id) }}" class="btn btn-secondary btn-sm" style="font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
+              <span>⬇️</span> Download
+            </a>
+          </div>
+
+          <form action="{{ url_for('teacher.delete_material', material_id=mat.id) }}" method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to delete this course material?');">
+            <button type="submit" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-weight: 600;">
+              🗑️ Delete
+            </button>
+          </form>
+        </div>
+
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card" style="text-align: center; padding: 3.5rem 1.5rem; background: #0f172a; border: 1px dashed var(--border);">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">📚</div>
+    <h3 style="font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">No Syllabus or Materials Uploaded Yet</h3>
+    <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto 1.5rem; font-size: 0.9rem; line-height: 1.5;">
+      Upload your subject syllabus, lecture presentations, formulas, or handouts. The system will automatically parse them into structured units and concepts for question generation and student script evaluation.
+    </p>
+    <button onclick="openUploadModal()" class="btn btn-primary" style="font-weight: 700; padding: 0.6rem 1.5rem;">
+      + Upload First Material
+    </button>
+  </div>
+{% endif %}
+
+
+<!-- ========================================== -->
+<!-- MODAL 1: Upload Syllabus / Material        -->
+<!-- ========================================== -->
+<div id="upload-modal" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 1rem;">
+  <div class="card" style="max-width: 620px; width: 100%; max-height: 90vh; overflow-y: auto; background: #0f172a; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin: 0;">📤 Upload Syllabus / Course Material</h2>
+      <button onclick="closeUploadModal()" style="background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer;">&times;</button>
+    </div>
+
+    <form action="{{ url_for('teacher.upload_material') }}" method="POST" enctype="multipart/form-data" id="upload-material-form">
+      
+      <!-- File Selector Dropzone -->
+      <div class="form-group" style="margin-bottom: 1.25rem;">
+        <label style="font-weight: 600; font-size: 0.85rem; color: #e2e8f0; margin-bottom: 0.4rem; display: block;">
+          Select File (PDF, Word, or Image) *
+        </label>
+        <div id="file-dropzone" style="border: 2px dashed #475569; border-radius: 8px; padding: 1.5rem 1rem; text-align: center; background: rgba(15, 23, 42, 0.6); cursor: pointer; transition: all 0.2s;" onclick="document.getElementById('material_file_input').click();">
+          <div style="font-size: 2.2rem; margin-bottom: 0.4rem;">📁</div>
+          <div id="file-selected-text" style="font-weight: 600; color: #f1f5f9; font-size: 0.95rem;">
+            Click to browse or drag & drop file here
+          </div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem;">
+            Supported formats: <strong>.pdf, .docx, .doc, .jpg, .jpeg, .png, .webp</strong> (Max 25MB)
+          </div>
+          <input type="file" id="material_file_input" name="material_file" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp" style="display: none;" onchange="handleFileSelected(this)" required>
+        </div>
+      </div>
+
+      <!-- Title -->
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label for="material_title" style="font-weight: 600; font-size: 0.85rem; color: #e2e8f0; margin-bottom: 0.4rem; display: block;">
+          Material / Document Title *
+        </label>
+        <input type="text" id="material_title" name="title" class="form-control" placeholder="e.g. Basic Electrical Engineering Complete Syllabus 2026" required>
+      </div>
+
+      <!-- Type & Subject Code Row -->
+      <div class="grid grid-2" style="gap: 1rem; margin-bottom: 1rem;">
+        <div class="form-group">
+          <label for="material_type" style="font-weight: 600; font-size: 0.85rem; color: #e2e8f0; margin-bottom: 0.4rem; display: block;">
+            Material Type *
+          </label>
+          <select id="material_type" name="material_type" class="form-control" required>
+            <option value="syllabus">📘 Official Course Syllabus</option>
+            <option value="lecture_notes">📝 Lecture Notes / Slides</option>
+            <option value="reference_material">📑 Reference Handout / Formula Sheet</option>
+            <option value="textbook_chapter">📖 Textbook Chapter</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="subject_code" style="font-weight: 600; font-size: 0.85rem; color: #e2e8f0; margin-bottom: 0.4rem; display: block;">
+            Subject Code / Name
+          </label>
+          <input type="text" id="subject_code" name="subject_code" class="form-control" placeholder="e.g. BEA (MEE-105) or MEE-105">
+        </div>
+      </div>
+
+      <!-- Unit / Topic & Optional Assessment Link -->
+      <div class="grid grid-2" style="gap: 1rem; margin-bottom: 1.25rem;">
+        <div class="form-group">
+          <label for="unit_topic" style="font-weight: 600; font-size: 0.85rem; color: #e2e8f0; margin-bottom: 0.4rem; display: block;">
+            Unit / Topic Covered
+          </label>
+          <input type="text" id="unit_topic" name="unit_topic" class="form-control" placeholder="e.g. All Units, or Unit 3: Transistors">
+        </div>
+
+        <div class="form-group">
+          <label for="assessment_id" style="font-weight: 600; font-size: 0.85rem; color: #e2e8f0; margin-bottom: 0.4rem; display: block;">
+            Link to Specific Assessment (Optional)
+          </label>
+          <select id="assessment_id" name="assessment_id" class="form-control">
+            <option value="">-- No specific assessment (General) --</option>
+            {% for a in assessments %}
+              <option value="{{ a.id }}">{{ a.title }} ({{ a.subject_code or 'No Code' }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Submission Info Alert -->
+      <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 0.75rem 1rem; font-size: 0.82rem; color: #bfdbfe; margin-bottom: 1.25rem;">
+        💡 <strong>Automatic Parsing:</strong> Upon upload, the AI will extract topics, definitions, and equations and create structured JSON. This can take 5–15 seconds for scanned documents.
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+        <button type="button" onclick="closeUploadModal()" class="btn btn-secondary">Cancel</button>
+        <button type="submit" id="btn-upload-submit" class="btn btn-primary" style="font-weight: 700; padding: 0.55rem 1.5rem;">
+          ✨ Upload & Process Material
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+
+<!-- ========================================== -->
+<!-- MODAL 2: Structured Content Inspector     -->
+<!-- ========================================== -->
+<div id="view-modal" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); z-index: 1060; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 1rem;">
+  <div class="card" style="max-width: 820px; width: 100%; max-height: 92vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid var(--border); box-shadow: 0 25px 50px rgba(0,0,0,0.7); padding: 0; overflow: hidden;">
+    
+    <!-- Modal Header -->
+    <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #1e293b;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+          <span id="modal-mat-badge" class="badge badge-info" style="font-weight: 700;">SYLLABUS</span>
+          <span id="modal-mat-subject" class="badge badge-secondary" style="font-size: 0.75rem;">BEA</span>
+        </div>
+        <h2 id="modal-mat-title" style="font-size: 1.2rem; font-weight: 700; color: #f8fafc; margin: 0;">Material Structure</h2>
+      </div>
+      <button onclick="closeViewModal()" style="background: none; border: none; font-size: 1.75rem; color: var(--text-muted); cursor: pointer;">&times;</button>
+    </div>
+
+    <!-- Tab navigation -->
+    <div style="display: flex; gap: 0.25rem; padding: 0.5rem 1.5rem 0; background: #131d31; border-bottom: 1px solid var(--border); overflow-x: auto;">
+      <button class="structure-tab active" onclick="switchStructureTab('tab-summary', this)">📋 Overview & Summary</button>
+      <button class="structure-tab" onclick="switchStructureTab('tab-units', this)">📑 Units & Topics</button>
+      <button class="structure-tab" onclick="switchStructureTab('tab-formulas', this)">🧪 Key Formulas</button>
+      <button class="structure-tab" onclick="switchStructureTab('tab-definitions', this)">📖 Core Definitions</button>
+      <button class="structure-tab" onclick="switchStructureTab('tab-raw', this)">📄 Extracted Raw Text</button>
+    </div>
+
+    <!-- Modal Content Body -->
+    <div style="padding: 1.5rem; overflow-y: auto; flex-grow: 1;">
+      
+      <!-- TAB 1: Summary -->
+      <div id="tab-summary" class="structure-tab-pane active">
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #93c5fd; margin-bottom: 0.5rem; text-transform: uppercase;">Curriculum / Material Summary</h4>
+        <div id="modal-summary-box" style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 1rem; color: #e2e8f0; font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.25rem;">
+          Loading...
+        </div>
+
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #86efac; margin-bottom: 0.5rem; text-transform: uppercase;">Learning Outcomes</h4>
+        <ul id="modal-outcomes-list" style="padding-left: 1.25rem; color: #cbd5e1; font-size: 0.88rem; line-height: 1.6; margin: 0;">
+        </ul>
+      </div>
+
+      <!-- TAB 2: Units & Topics -->
+      <div id="tab-units" class="structure-tab-pane" style="display: none;">
+        <div id="modal-units-container" style="display: flex; flex-direction: column; gap: 0.85rem;">
+        </div>
+      </div>
+
+      <!-- TAB 3: Formulas -->
+      <div id="tab-formulas" class="structure-tab-pane" style="display: none;">
+        <div id="modal-formulas-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        </div>
+      </div>
+
+      <!-- TAB 4: Definitions -->
+      <div id="tab-definitions" class="structure-tab-pane" style="display: none;">
+        <div id="modal-defs-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        </div>
+      </div>
+
+      <!-- TAB 5: Raw Text -->
+      <div id="tab-raw" class="structure-tab-pane" style="display: none;">
+        <pre id="modal-raw-text" style="background: #090d16; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; color: #94a3b8; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; max-height: 400px; overflow-y: auto;">
+        </pre>
+      </div>
+
+    </div>
+
+    <!-- Modal Footer -->
+    <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); background: #1e293b; display: flex; justify-content: flex-end;">
+      <button onclick="closeViewModal()" class="btn btn-secondary">Close</button>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.btn-filter {
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid var(--border);
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-filter:hover {
+  background: #334155;
+  color: #f8fafc;
+}
+.btn-filter.active {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #6366f1;
+}
+
+.structure-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.structure-tab:hover {
+  color: #f1f5f9;
+}
+.structure-tab.active {
+  color: #818cf8;
+  border-bottom-color: #818cf8;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 900px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 500px) {
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<script>
+// Filter Materials by Type
+function filterMaterials(type, btn) {
+  document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const items = document.querySelectorAll('.material-item');
+  items.forEach(item => {
+    if (type === 'all' || item.getAttribute('data-type') === type) {
+      item.style.display = 'flex';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+}
+
+// Upload Modal
+function openUploadModal() {
+  const modal = document.getElementById('upload-modal');
+  modal.style.display = 'flex';
+}
+
+function closeUploadModal() {
+  document.getElementById('upload-modal').style.display = 'none';
+}
+
+function handleFileSelected(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    document.getElementById('file-selected-text').innerHTML = `📄 <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+    document.getElementById('file-dropzone').style.borderColor = '#10b981';
+    
+    // Auto-fill title if empty
+    const titleInput = document.getElementById('material_title');
+    if (!titleInput.value) {
+      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      titleInput.value = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    }
+  }
+}
+
+// Submit button spinner
+document.getElementById('upload-material-form')?.addEventListener('submit', function() {
+  const btn = document.getElementById('btn-upload-submit');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Parsing & Structuring Document...`;
+});
+
+// View Material Modal
+async function viewMaterial(materialId) {
+  const modal = document.getElementById('view-modal');
+  modal.style.display = 'flex';
+
+  // Set default loading state
+  document.getElementById('modal-mat-title').textContent = 'Loading...';
+  document.getElementById('modal-summary-box').textContent = 'Fetching structured content...';
+
+  try {
+    const res = await fetch(`/teacher/materials/${materialId}`);
+    const data = await res.json();
+    if (!data.success || !data.material) {
+      alert('Could not load material details.');
+      closeViewModal();
+      return;
+    }
+
+    const mat = data.material;
+    const sc = mat.structured_content || {};
+
+    document.getElementById('modal-mat-title').textContent = mat.title;
+    document.getElementById('modal-mat-subject').textContent = mat.subject_code || mat.unit_topic || 'General';
+    document.getElementById('modal-mat-badge').textContent = (mat.material_type || 'material').replace('_', ' ').toUpperCase();
+
+    // Summary & Outcomes
+    document.getElementById('modal-summary-box').textContent = sc.summary || 'No summary extracted for this material.';
+    
+    const outcomesList = document.getElementById('modal-outcomes-list');
+    outcomesList.innerHTML = '';
+    const outcomes = sc.learning_outcomes || [];
+    if (outcomes.length > 0) {
+      outcomes.forEach(out => {
+        const li = document.createElement('li');
+        li.textContent = out;
+        outcomesList.appendChild(li);
+      });
+    } else {
+      outcomesList.innerHTML = '<li style="color: var(--text-muted);">No explicit learning outcomes detected.</li>';
+    }
+
+    // Units & Topics
+    const unitsContainer = document.getElementById('modal-units-container');
+    unitsContainer.innerHTML = '';
+    const units = sc.units || [];
+    const topics = sc.topics || [];
+    if (units.length > 0) {
+      units.forEach((u, idx) => {
+        const uBox = document.createElement('div');
+        uBox.style.background = 'rgba(15, 23, 42, 0.7)';
+        uBox.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+        uBox.style.borderRadius = '6px';
+        uBox.style.padding = '0.75rem 1rem';
+        uBox.innerHTML = `
+          <div style="font-weight: 700; color: #60a5fa; font-size: 0.95rem; margin-bottom: 0.35rem;">
+            📌 Unit ${idx + 1}: ${u}
+          </div>
+        `;
+        unitsContainer.appendChild(uBox);
+      });
+    } else if (topics.length > 0) {
+      topics.forEach(t => {
+        const tBox = document.createElement('div');
+        tBox.style.background = 'rgba(15, 23, 42, 0.7)';
+        tBox.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+        tBox.style.borderRadius = '6px';
+        tBox.style.padding = '0.65rem 1rem';
+        tBox.innerHTML = `<span style="color: #60a5fa; font-weight: 600;">🔖</span> <span style="color: #e2e8f0; font-size: 0.9rem;">${t}</span>`;
+        unitsContainer.appendChild(tBox);
+      });
+    } else {
+      unitsContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No unit breakdown found.</div>';
+    }
+
+    // Formulas
+    const formulasContainer = document.getElementById('modal-formulas-container');
+    formulasContainer.innerHTML = '';
+    const formulas = sc.key_formulas || [];
+    if (formulas.length > 0) {
+      formulas.forEach(f => {
+        const fBox = document.createElement('div');
+        fBox.style.background = 'rgba(245, 158, 11, 0.08)';
+        fBox.style.border = '1px solid rgba(245, 158, 11, 0.25)';
+        fBox.style.borderRadius = '6px';
+        fBox.style.padding = '0.75rem 1rem';
+        fBox.style.fontFamily = 'monospace';
+        fBox.style.color = '#fde68a';
+        fBox.style.fontSize = '0.92rem';
+        fBox.textContent = f;
+        formulasContainer.appendChild(fBox);
+      });
+    } else {
+      formulasContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No explicit mathematical or technical formulas extracted.</div>';
+    }
+
+    // Definitions
+    const defsContainer = document.getElementById('modal-defs-container');
+    defsContainer.innerHTML = '';
+    const defs = sc.key_definitions || [];
+    if (defs.length > 0) {
+      defs.forEach(d => {
+        const dBox = document.createElement('div');
+        dBox.style.background = 'rgba(16, 185, 129, 0.08)';
+        dBox.style.border = '1px solid rgba(16, 185, 129, 0.25)';
+        dBox.style.borderRadius = '6px';
+        dBox.style.padding = '0.75rem 1rem';
+        dBox.style.color = '#a7f3d0';
+        dBox.style.fontSize = '0.88rem';
+        dBox.style.lineHeight = '1.5';
+        dBox.textContent = d;
+        defsContainer.appendChild(dBox);
+      });
+    } else {
+      defsContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No key definitions extracted.</div>';
+    }
+
+    // Raw text snippet
+    document.getElementById('modal-raw-text').textContent = mat.extracted_text || 'No text extracted.';
+
+  } catch (err) {
+    console.error('Error fetching material details:', err);
+    alert('Failed to load material details.');
+    closeViewModal();
+  }
+}
+
+function closeViewModal() {
+  document.getElementById('view-modal').style.display = 'none';
+}
+
+function switchStructureTab(tabId, btn) {
+  document.querySelectorAll('.structure-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  document.querySelectorAll('.structure-tab-pane').forEach(p => p.style.display = 'none');
+  const target = document.getElementById(tabId);
+  if (target) {
+    target.style.display = 'block';
+  }
+}
+
+// Close modals on escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeUploadModal();
+    closeViewModal();
+  }
+});
+</script>
+{% endblock %}
+

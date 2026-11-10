@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Slip Test: {{ assessment.title }} - BEA Online Evaluator{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Header Banner -->
+  <div class="card" style="border-left: 4px solid var(--secondary); margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+          <span class="badge badge-info">{{ assessment.subject_code or 'MEE-105' }}</span>
+          <span class="badge badge-success" style="font-weight: 600;">⚡ Objective Slip Test</span>
+          <span class="badge badge-secondary" style="font-size: 0.75rem;">Instant Scoring (No AI)</span>
+        </div>
+        <h1 style="font-size: 1.45rem; font-weight: 700; margin: 0; color: #f8fafc;">
+          {{ assessment.title }}
+        </h1>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 0;">
+          Student: <strong style="color: #e2e8f0;">{{ session.get('student_name') }}</strong> (PIN: <strong>{{ session.get('student_pin') }}</strong>)
+        </p>
+      </div>
+
+      <div style="text-align: right; background: rgba(15, 23, 42, 0.8); padding: 0.6rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Total Questions</div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: #38bdf8;">
+          {{ assessment.questions|length }} <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">({{ assessment.max_marks }} Marks)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Question Tracker Navigator Pills -->
+  <div class="card" style="padding: 1rem 1.25rem; margin-bottom: 1.5rem; background: rgba(15, 23, 42, 0.9);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+      <span style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+        Question Navigator
+      </span>
+      <span id="progressSummary" style="font-size: 0.85rem; color: #38bdf8; font-weight: 600;">
+        Question 1 of {{ assessment.questions|length }}
+      </span>
+    </div>
+
+    <!-- Clickable Navigation Pills -->
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;" id="navPillsContainer">
+      {% for q in assessment.questions %}
+        <button type="button" 
+                class="nav-pill-btn" 
+                id="navPill_{{ loop.index0 }}" 
+                onclick="goToQuestion({{ loop.index0 }})"
+                style="min-width: 42px; height: 38px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; border: 1px solid var(--border); background: #1e293b; color: #cbd5e1; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+          <span>Q{{ q.question_number or loop.index }}</span>
+          <span class="pill-check" id="pillCheck_{{ loop.index0 }}" style="display: none; font-size: 0.75rem; color: #34d399;">✓</span>
+        </button>
+      {% endfor %}
+    </div>
+
+    <!-- Progress Bar -->
+    <div style="width: 100%; height: 6px; background: #334155; border-radius: 999px; overflow: hidden;">
+      <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #34d399); transition: width 0.3s ease;"></div>
+    </div>
+  </div>
+
+  <!-- Form Wrapping All Questions (One Question Displayed at a Time) -->
+  <form id="slipTestForm" action="{{ url_for('student.submit_slip_test', assessment_id=assessment.id) }}" method="POST">
+    <input type="hidden" name="submission_id" value="{{ submission.id }}">
+
+    {% for q in assessment.questions %}
+      {% set q_idx = loop.index0 %}
+      <div class="card question-card" 
+           id="questionCard_{{ q_idx }}" 
+           style="{% if not loop.first %}display: none;{% endif %} padding: 2rem; border-top: 4px solid #38bdf8; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); margin-bottom: 1.5rem;">
+        
+        <!-- Question Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <span class="badge badge-primary" style="font-size: 0.9rem; padding: 0.35rem 0.75rem; font-weight: 700;">
+              Question {{ q.question_number or loop.index }}
+            </span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Single Choice (1 Correct Answer)</span>
+          </div>
+          <div>
+            <span class="badge badge-info" style="font-size: 0.85rem;">
+              {{ q.max_marks or 1 }} Mark{{ 's' if (q.max_marks or 1) > 1 else '' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Question Text -->
+        <div style="font-size: 1.15rem; font-weight: 600; line-height: 1.6; color: #f8fafc; margin-bottom: 1.5rem;">
+          {{ q.question_text }}
+        </div>
+
+        <!-- Attached Diagram/Image (if present) -->
+        {% if q.question_image_url %}
+          <div style="margin-bottom: 1.5rem; background: #0b1120; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; text-align: center;">
+            <div style="font-size: 0.75rem; color: #38bdf8; font-weight: 600; margin-bottom: 0.5rem; text-align: left;">
+              📸 Circuit / Reference Diagram:
+            </div>
+            <a href="{{ q.question_image_url }}" target="_blank" title="Click to view full reference figure in new tab">
+              <img src="{{ q.question_image_url }}" alt="Figure for Question {{ q.question_number or loop.index }}" style="max-width: 100%; max-height: 280px; border-radius: var(--radius-sm); object-fit: contain;">
+            </a>
+          </div>
+        {% endif %}
+
+        <!-- 4 MCQ Options (A, B, C, D) -->
+        <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1rem;">
+          
+          <!-- Option A -->
+          <label class="option-label" id="label_{{ q.id }}_A" onclick="selectOption('{{ q.id }}', 'A', {{ q_idx }})"
+                 style="display: flex; align-items: flex-start; gap: 1rem; padding: 1rem 1.25rem; border-radius: 10px; border: 2px solid #334155; background: #1e293b; cursor: pointer; transition: all 0.2s ease;">
+            <input type="radio" name="mcq_answer_{{ q.id }}" id="opt_{{ q.id }}_A" value="A" style="margin-top: 0.25rem; accent-color: #38bdf8; transform: scale(1.2);">
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; flex: 1;">
+              <span class="option-badge" id="optBadge_{{ q.id }}_A" style="width: 28px; height: 28px; border-radius: 50%; background: #334155; color: #f8fafc; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;">A</span>
+              <span style="font-size: 1rem; color: #e2e8f0; line-height: 1.5;">{{ q.option_a or 'Option A' }}</span>
+            </div>
+          </label>
+
+          <!-- Option B -->
+          <label class="option-label" id="label_{{ q.id }}_B" onclick="selectOption('{{ q.id }}', 'B', {{ q_idx }})"
+                 style="display: flex; align-items: flex-start; gap: 1rem; padding: 1rem 1.25rem; border-radius: 10px; border: 2px solid #334155; background: #1e293b; cursor: pointer; transition: all 0.2s ease;">
+            <input type="radio" name="mcq_answer_{{ q.id }}" id="opt_{{ q.id }}_B" value="B" style="margin-top: 0.25rem; accent-color: #38bdf8; transform: scale(1.2);">
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; flex: 1;">
+              <span class="option-badge" id="optBadge_{{ q.id }}_B" style="width: 28px; height: 28px; border-radius: 50%; background: #334155; color: #f8fafc; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;">B</span>
+              <span style="font-size: 1rem; color: #e2e8f0; line-height: 1.5;">{{ q.option_b or 'Option B' }}</span>
+            </div>
+          </label>
+
+          <!-- Option C -->
+          <label class="option-label" id="label_{{ q.id }}_C" onclick="selectOption('{{ q.id }}', 'C', {{ q_idx }})"
+                 style="display: flex; align-items: flex-start; gap: 1rem; padding: 1rem 1.25rem; border-radius: 10px; border: 2px solid #334155; background: #1e293b; cursor: pointer; transition: all 0.2s ease;">
+            <input type="radio" name="mcq_answer_{{ q.id }}" id="opt_{{ q.id }}_C" value="C" style="margin-top: 0.25rem; accent-color: #38bdf8; transform: scale(1.2);">
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; flex: 1;">
+              <span class="option-badge" id="optBadge_{{ q.id }}_C" style="width: 28px; height: 28px; border-radius: 50%; background: #334155; color: #f8fafc; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;">C</span>
+              <span style="font-size: 1rem; color: #e2e8f0; line-height: 1.5;">{{ q.option_c or 'Option C' }}</span>
+            </div>
+          </label>
+
+          <!-- Option D -->
+          <label class="option-label" id="label_{{ q.id }}_D" onclick="selectOption('{{ q.id }}', 'D', {{ q_idx }})"
+                 style="display: flex; align-items: flex-start; gap: 1rem; padding: 1rem 1.25rem; border-radius: 10px; border: 2px solid #334155; background: #1e293b; cursor: pointer; transition: all 0.2s ease;">
+            <input type="radio" name="mcq_answer_{{ q.id }}" id="opt_{{ q.id }}_D" value="D" style="margin-top: 0.25rem; accent-color: #38bdf8; transform: scale(1.2);">
+            <div style="display: flex; align-items: flex-start; gap: 0.75rem; flex: 1;">
+              <span class="option-badge" id="optBadge_{{ q.id }}_D" style="width: 28px; height: 28px; border-radius: 50%; background: #334155; color: #f8fafc; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;">D</span>
+              <span style="font-size: 1rem; color: #e2e8f0; line-height: 1.5;">{{ q.option_d or 'Option D' }}</span>
+            </div>
+          </label>
+
+        </div>
+      </div>
+    {% endfor %}
+
+    <!-- Bottom Step Navigation Toolbar -->
+    <div class="card" style="padding: 1.25rem; background: rgba(15, 23, 42, 0.95); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; position: sticky; bottom: 1rem; z-index: 10; box-shadow: 0 -4px 20px rgba(0,0,0,0.5);">
+      <div>
+        <button type="button" 
+                id="btnPrev" 
+                onclick="prevQuestion()" 
+                class="btn btn-secondary" 
+                style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+          ← Previous Question
+        </button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <span id="answeredCounter" style="font-size: 0.85rem; color: #94a3b8;">
+          Answered: <strong id="answeredCount" style="color: #34d399;">0</strong> / {{ assessment.questions|length }}
+        </span>
+
+        <button type="button" 
+                id="btnNext" 
+                onclick="nextQuestion()" 
+                class="btn btn-primary" 
+                style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+          Next Question →
+        </button>
+
+        <button type="button" 
+                id="btnSubmit" 
+                onclick="confirmAndSubmit()" 
+                class="btn btn-success" 
+                style="display: none; align-items: center; gap: 0.5rem; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border: none; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);">
+          🚀 Submit Slip Test
+        </button>
+      </div>
+    </div>
+  </form>
+
+</div>
+
+<script>
+  const totalQuestions = {{ assessment.questions|length }};
+  let currentQuestionIndex = 0;
+  const answeredQuestions = new Set();
+
+  function updateUI() {
+    // Show current question card, hide all others
+    for (let i = 0; i < totalQuestions; i++) {
+      const card = document.getElementById('questionCard_' + i);
+      const pill = document.getElementById('navPill_' + i);
+      if (card) {
+        if (i === currentQuestionIndex) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      }
+      if (pill) {
+        if (i === currentQuestionIndex) {
+          pill.style.border = '2px solid #38bdf8';
+          pill.style.background = '#0284c7';
+          pill.style.color = '#ffffff';
+          pill.style.boxShadow = '0 0 10px rgba(56, 189, 248, 0.5)';
+        } else if (answeredQuestions.has(i)) {
+          pill.style.border = '1px solid #10b981';
+          pill.style.background = 'rgba(16, 185, 129, 0.15)';
+          pill.style.color = '#34d399';
+          pill.style.boxShadow = 'none';
+        } else {
+          pill.style.border = '1px solid var(--border)';
+          pill.style.background = '#1e293b';
+          pill.style.color = '#cbd5e1';
+          pill.style.boxShadow = 'none';
+        }
+      }
+    }
+
+    // Update Previous / Next / Submit buttons
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const btnSubmit = document.getElementById('btnSubmit');
+
+    if (btnPrev) {
+      btnPrev.disabled = (currentQuestionIndex === 0);
+      btnPrev.style.opacity = (currentQuestionIndex === 0) ? '0.4' : '1';
+      btnPrev.style.cursor = (currentQuestionIndex === 0) ? 'not-allowed' : 'pointer';
+    }
+
+    if (currentQuestionIndex === totalQuestions - 1) {
+      if (btnNext) btnNext.style.display = 'none';
+      if (btnSubmit) btnSubmit.style.display = 'inline-flex';
+    } else {
+      if (btnNext) btnNext.style.display = 'inline-flex';
+      if (btnSubmit) btnSubmit.style.display = 'none';
+    }
+
+    // Update Progress summary text and progress bar
+    const progressSummary = document.getElementById('progressSummary');
+    if (progressSummary) {
+      progressSummary.textContent = `Question ${currentQuestionIndex + 1} of ${totalQuestions}`;
+    }
+
+    const pct = Math.round(((answeredQuestions.size) / totalQuestions) * 100);
+    const progressBar = document.getElementById('progressBar');
+    if (progressBar) {
+      progressBar.style.width = pct + '%';
+    }
+
+    const answeredCount = document.getElementById('answeredCount');
+    if (answeredCount) {
+      answeredCount.textContent = answeredQuestions.size;
+    }
+  }
+
+  function goToQuestion(index) {
+    if (index >= 0 && index < totalQuestions) {
+      currentQuestionIndex = index;
+      updateUI();
+      window.scrollTo({ top: 120, behavior: 'smooth' });
+    }
+  }
+
+  function nextQuestion() {
+    if (currentQuestionIndex < totalQuestions - 1) {
+      goToQuestion(currentQuestionIndex + 1);
+    }
+  }
+
+  function prevQuestion() {
+    if (currentQuestionIndex > 0) {
+      goToQuestion(currentQuestionIndex - 1);
+    }
+  }
+
+  function selectOption(questionId, optionLetter, qIndex) {
+    const radio = document.getElementById('opt_' + questionId + '_' + optionLetter);
+    if (radio) {
+      radio.checked = true;
+    }
+
+    // Update visual styling for option labels of this question
+    ['A', 'B', 'C', 'D'].forEach(opt => {
+      const lbl = document.getElementById('label_' + questionId + '_' + opt);
+      const badge = document.getElementById('optBadge_' + questionId + '_' + opt);
+      if (lbl && badge) {
+        if (opt === optionLetter) {
+          lbl.style.border = '2px solid #38bdf8';
+          lbl.style.background = 'rgba(56, 189, 248, 0.12)';
+          lbl.style.boxShadow = '0 0 12px rgba(56, 189, 248, 0.25)';
+          badge.style.background = '#38bdf8';
+          badge.style.color = '#0f172a';
+        } else {
+          lbl.style.border = '2px solid #334155';
+          lbl.style.background = '#1e293b';
+          lbl.style.boxShadow = 'none';
+          badge.style.background = '#334155';
+          badge.style.color = '#f8fafc';
+        }
+      }
+    });
+
+    // Mark question as answered
+    answeredQuestions.add(qIndex);
+    const checkIcon = document.getElementById('pillCheck_' + qIndex);
+    if (checkIcon) {
+      checkIcon.style.display = 'inline';
+    }
+
+    updateUI();
+  }
+
+  function confirmAndSubmit() {
+    const answered = answeredQuestions.size;
+    let msg = `You have answered ${answered} of ${totalQuestions} questions.\n\nAre you sure you want to finalize and submit this Slip Test? Your score and comprehensive technical explanations will be generated immediately!`;
+    if (answered < totalQuestions) {
+      const unanswered = totalQuestions - answered;
+      msg = `⚠️ Attention: You have ${unanswered} UNANSWERED question(s).\n\nDo you still wish to submit? Unanswered questions will receive 0 marks.`;
+    }
+
+    if (confirm(msg)) {
+      document.getElementById('slipTestForm').submit();
+    }
+  }
+
+  // Keyboard navigation shortcuts
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+      nextQuestion();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      prevQuestion();
+    }
+  });
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    updateUI();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}MCQ Test Result: {{ assessment.title }} - BEA Online Evaluator{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Student & Result Overview Banner -->
+  <div class="card" style="border-left: 5px solid {% if submission.pass_status == 'pass' %}#10b981{% else %}#ef4444{% endif %}; margin-bottom: 2rem; background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.5rem;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+          <span class="badge badge-info">{{ assessment.subject_code or 'MEE-105' }}</span>
+          <span class="badge badge-success" style="font-weight: 700; background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8;">
+            ⚡ MCQ Test Result
+          </span>
+          <span class="badge badge-secondary" style="font-size: 0.75rem;">Verified Database Auto-Scoring</span>
+        </div>
+        <h1 style="font-size: 1.6rem; font-weight: 800; margin: 0; color: #f8fafc;">
+          {{ assessment.title }}
+        </h1>
+        <div style="margin-top: 0.65rem; font-size: 0.9rem; color: #cbd5e1; line-height: 1.6;">
+          <div>Student Name: <strong style="color: #ffffff;">{{ session.get('student_name') }}</strong></div>
+          <div>Student PIN: <strong style="color: #38bdf8;">{{ session.get('student_pin') }}</strong></div>
+          <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
+            Receipt: <code>{{ submission.submission_receipt_code }}</code> • Submitted: {{ submission.submitted_at | to_kolkata_time }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Score Badge Card -->
+      <div style="text-align: right; background: rgba(15, 23, 42, 0.9); padding: 1.25rem 1.5rem; border-radius: 12px; border: 1px solid var(--border); min-width: 220px;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+          Marks Obtained
+        </div>
+        <div style="font-size: 2.25rem; font-weight: 800; color: {% if submission.pass_status == 'pass' %}#34d399{% else %}#f87171{% endif %}; line-height: 1.2;">
+          {{ submission.official_total_marks if submission.official_total_marks is not none else submission.ai_total_marks or 0.0 }}
+          <span style="font-size: 1.1rem; color: #94a3b8; font-weight: 400;">/ {{ assessment.max_marks }}</span>
+        </div>
+        <div style="margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 0.5rem;">
+          <span style="font-size: 0.85rem; font-weight: 700; color: #cbd5e1;">{{ submission.percentage }}%</span>
+          {% if submission.pass_status == 'pass' %}
+            <span class="badge badge-success" style="font-size: 0.85rem; font-weight: 700;">PASS ✓</span>
+          {% else %}
+            <span class="badge badge-danger" style="font-size: 0.85rem; font-weight: 700;">FAIL</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance Statistics Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 2rem;">
+    <div class="card" style="padding: 1rem; text-align: center; background: #0f172a;">
+      <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Total Questions</div>
+      <div style="font-size: 1.6rem; font-weight: 800; color: #38bdf8;">{{ stats.total_questions }}</div>
+    </div>
+    <div class="card" style="padding: 1rem; text-align: center; background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3);">
+      <div style="font-size: 0.75rem; color: #34d399; text-transform: uppercase; font-weight: 600;">Correct Answers</div>
+      <div style="font-size: 1.6rem; font-weight: 800; color: #34d399;">{{ stats.correct_answers }}</div>
+    </div>
+    <div class="card" style="padding: 1rem; text-align: center; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3);">
+      <div style="font-size: 0.75rem; color: #f87171; text-transform: uppercase; font-weight: 600;">Incorrect Answers</div>
+      <div style="font-size: 1.6rem; font-weight: 800; color: #f87171;">{{ stats.incorrect_answers }}</div>
+    </div>
+    <div class="card" style="padding: 1rem; text-align: center; background: #0f172a;">
+      <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Unanswered</div>
+      <div style="font-size: 1.6rem; font-weight: 800; color: #94a3b8;">{{ stats.unanswered }}</div>
+    </div>
+    <div class="card" style="padding: 1rem; text-align: center; background: #0f172a;">
+      <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Pass Cutoff</div>
+      <div style="font-size: 1.6rem; font-weight: 800; color: #fbbf24;">{{ assessment.pass_percentage }}%</div>
+    </div>
+  </div>
+
+  <!-- Detailed Question-by-Question Review with Visual Indicators -->
+  <div class="card-header" style="margin-bottom: 1.25rem;">
+    <h2 class="card-title">🔍 Comprehensive Question & Explanation Review</h2>
+    <div style="display: flex; gap: 0.5rem; font-size: 0.8rem;">
+      <span class="badge badge-success">Green: Correct</span>
+      <span class="badge badge-danger">Red: Incorrect</span>
+      <span class="badge badge-secondary">Grey: Unanswered</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 3rem;">
+    {% for q in assessment.questions %}
+      {% set q_id = q.id or loop.index|string %}
+      {% set ev = evaluations.get(q_id, {}) or evaluations.get(loop.index|string, {}) or evaluations.get(q.question_number|string, {}) %}
+      {% set student_choice = ev.student_selected_option or '' %}
+      {% set correct_opt = (q.correct_option or ev.correct_option or 'A') | upper %}
+      {% set is_unanswered = (not student_choice) %}
+      {% set is_correct = (not is_unanswered and student_choice == correct_opt) %}
+
+      <div class="card" style="padding: 1.75rem; border-top: 4px solid {% if is_correct %}#10b981{% elif is_unanswered %}#64748b{% else %}#ef4444{% endif %}; background: #0b1120;">
+        <!-- Card Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="badge badge-primary" style="font-size: 0.9rem; font-weight: 700;">
+              Question {{ q.question_number or loop.index }}
+            </span>
+            <span style="font-weight: 700; color: #cbd5e1; font-size: 0.85rem;">
+              [{{ q.max_marks }} Mark{% if q.max_marks > 1 %}s{% endif %}]
+            </span>
+          </div>
+
+          <div>
+            {% if is_correct %}
+              <span class="badge badge-success" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
+                ✓ Correct (+{{ q.max_marks }})
+              </span>
+            {% elif is_unanswered %}
+              <span class="badge badge-secondary" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
+                ⚪ Unanswered (0 / {{ q.max_marks }})
+              </span>
+            {% else %}
+              <span class="badge badge-danger" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">
+                ✗ Incorrect (0 / {{ q.max_marks }})
+              </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Question Text -->
+        <div style="font-size: 1.05rem; font-weight: 600; color: #f8fafc; margin-bottom: 1.25rem; line-height: 1.5; background: #0f172a; padding: 1rem; border-radius: var(--radius-sm); border-left: 3px solid #38bdf8;">
+          {{ q.question_text }}
+        </div>
+
+        <!-- Reference Image if Present -->
+        {% if q.question_image_url %}
+          <div style="text-align: center; margin-bottom: 1.25rem;">
+            <img src="{{ q.question_image_url }}" alt="Reference Figure" style="max-height: 220px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          </div>
+        {% endif %}
+
+        <!-- All 4 Options with Visual State -->
+        <div style="display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 1.25rem;">
+          {% set options_list = [('A', q.option_a), ('B', q.option_b), ('C', q.option_c), ('D', q.option_d)] %}
+          {% for opt_key, opt_text in options_list %}
+            {% if opt_text %}
+              {% set was_selected = (student_choice == opt_key) %}
+              {% set is_actual_key = (correct_opt == opt_key) %}
+
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.15rem; border-radius: 8px; border: 2px solid {% if was_selected and is_actual_key %}#10b981{% elif was_selected and not is_actual_key %}#ef4444{% elif is_actual_key %}#059669{% else %}#1e293b{% endif %}; background: {% if was_selected and is_actual_key %}rgba(16, 185, 129, 0.15){% elif was_selected and not is_actual_key %}rgba(239, 68, 68, 0.15){% elif is_actual_key %}rgba(5, 150, 105, 0.1){% else %}#0f172a{% endif %};">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <span style="min-width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; background: {% if is_actual_key %}#10b981{% elif was_selected %}#ef4444{% else %}#334155{% endif %}; color: #ffffff;">
+                    {{ opt_key }}
+                  </span>
+                  <span style="font-size: 0.95rem; color: #f1f5f9;">{{ opt_text }}</span>
+                </div>
+
+                <div>
+                  {% if was_selected and is_actual_key %}
+                    <span class="badge badge-success" style="font-size: 0.75rem;">✓ Your Selected Answer (Correct)</span>
+                  {% elif was_selected and not is_actual_key %}
+                    <span class="badge badge-danger" style="font-size: 0.75rem;">✗ Your Selected Answer (Incorrect)</span>
+                  {% elif is_actual_key %}
+                    <span class="badge badge-success" style="font-size: 0.75rem; background: transparent; border: 1px solid #10b981; color: #34d399;">✓ Correct Answer Key</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <!-- Stored Technical Explanation (Zero AI tokens consumed) -->
+        <div style="background: rgba(14, 165, 233, 0.08); border-left: 4px solid #38bdf8; padding: 1rem 1.25rem; border-radius: var(--radius-sm); margin-top: 0.5rem;">
+          <div style="font-weight: 700; color: #38bdf8; font-size: 0.9rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>💡</span> Technical Explanation:
+          </div>
+          <div style="color: #e2e8f0; font-size: 0.88rem; line-height: 1.6;">
+            {{ q.model_answer or ev.explanation or 'Option ' ~ correct_opt ~ ' is verified as the technically correct answer.' }}
+          </div>
+        </div>
+
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Bottom Action Buttons -->
+  <div style="text-align: center; margin-bottom: 3rem;">
+    <a href="{{ url_for('student.dashboard') }}" class="btn btn-primary" style="padding: 0.6rem 2rem; font-weight: 700;">
+      ← Return to Student Dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+

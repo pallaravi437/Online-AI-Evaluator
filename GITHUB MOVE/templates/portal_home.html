@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Online Evaluator - AI Academic Assessment Platform{% endblock %}
+
+{% block content %}
+<div style="max-width: 1180px; margin: 1rem auto 3rem;">
+
+  <!-- HERO SECTION -->
+  <div style="text-align: center; padding: 2.5rem 1rem 2rem;">
+    <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); padding: 0.35rem 0.85rem; border-radius: 999px; margin-bottom: 1.25rem;">
+      <span style="font-size: 0.9rem;">✨</span>
+      <span style="color: #38bdf8; font-size: 0.82rem; font-weight: 600; letter-spacing: 0.02em;">
+        Next-Generation Academic Evaluation & Multi-Server Storage
+      </span>
+    </div>
+
+    <h1 style="font-size: 2.5rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem; color: #f8fafc; letter-spacing: -0.02em;">
+      Intelligent Descriptive & Objective <br>
+      <span style="background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        AI Assessment Platform
+      </span>
+    </h1>
+
+    <p style="color: var(--text-muted); font-size: 1.05rem; max-width: 720px; margin: 0 auto 2rem; line-height: 1.6;">
+      Ground evaluations directly on your course syllabus. Evaluate handwritten paper scripts with multimodal vision AI, deliver instant MCQ analytics, and route academic data across distributed database clusters.
+    </p>
+
+    <!-- Quick 1-Click Access Buttons -->
+    <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+      <form action="{{ url_for('teacher.login') }}" method="POST" style="display: inline;">
+        <input type="hidden" name="email" value="teacher">
+        <input type="hidden" name="password" value="teacher123">
+        <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.25rem; font-size: 0.92rem; font-weight: 600; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);">
+          ⚡ 1-Click Demo Lecturer Login →
+        </button>
+      </form>
+
+      <form action="{{ url_for('student.login') }}" method="POST" style="display: inline;">
+        <input type="hidden" name="name" value="KASHABOINA PRANAVI">
+        <input type="hidden" name="pin" value="26054-ES-041">
+        <button type="submit" class="btn btn-secondary" style="padding: 0.75rem 1.25rem; font-size: 0.92rem; font-weight: 600;">
+          🎓 1-Click Demo Student Login →
+        </button>
+      </form>
+
+      <a href="{{ url_for('teacher.signup') }}" class="btn btn-secondary" style="padding: 0.75rem 1.25rem; font-size: 0.92rem; font-weight: 600; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">
+        ✨ Lecturer Signup →
+      </a>
+    </div>
+  </div>
+
+  <!-- 2 MAIN PORTAL CARDS -->
+  <div class="grid grid-2" style="gap: 1.75rem; margin-top: 1rem;">
+    
+    <!-- Student Portal Card -->
+    <div class="card" style="border-top: 4px solid #38bdf8; background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.9)); padding: 2rem; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+            🎓
+          </div>
+          <span class="badge badge-info" style="font-size: 0.75rem;">Passwordless PIN Access</span>
+        </div>
+
+        <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; color: #f8fafc;">
+          Student Assessment Portal
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.55; margin-bottom: 1.5rem;">
+          Access assigned objective tests and slip tests. Submit handwritten answer sheets by snapping photos with your mobile camera or desktop upload, receiving immediate verified receipts and detailed evaluation feedback.
+        </p>
+
+        <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem; font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.65rem;">
+          <li style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: #38bdf8;">✓</span> Instant automated grading for objective MCQ tests
+          </li>
+          <li style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: #38bdf8;">✓</span> Mobile-friendly handwritten camera upload with sharpness check
+          </li>
+          <li style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: #38bdf8;">✓</span> Tamper-proof submission receipts (e.g. <code>BEA-9A4B-2026</code>)
+          </li>
+        </ul>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <a href="{{ url_for('student.login') }}" class="btn btn-primary" style="flex: 1; text-align: center; justify-content: center; background: #0284c7; border-color: #0284c7;">
+          Go to Student Login →
+        </a>
+      </div>
+    </div>
+
+    <!-- Lecturer & Examiner Portal Card -->
+    <div class="card" style="border-top: 4px solid #10b981; background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.9)); padding: 2rem; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+            👨‍🏫
+          </div>
+          <span class="badge badge-success" style="font-size: 0.75rem;">Lecturer & Examiner Suite</span>
+        </div>
+
+        <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; color: #f8fafc;">
+          Lecturer & Admin Studio
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; line-line-height: 1.55; margin-bottom: 1.5rem;">
+          Create assessments, upload course syllabi to ground AI models, generate questions from exam papers or curriculum notes, and review student handwritten scripts with side-by-side zoomable image inspection.
+        </p>
+
+        <ul style="list-style: none; padding: 0; margin: 0 0 1.5rem; font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 0.65rem;">
+          <li style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: #34d399;">✓</span> Grounded syllabus indexing (Units, Formulas, Definitions, COs)
+          </li>
+          <li style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: #34d399;">✓</span> Multimodal AI script evaluation with point-by-point rubric deduction
+          </li>
+          <li style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: #34d399;">✓</span> Multi-server database routing (Firebase, MySQL, Supabase, Local)
+          </li>
+        </ul>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem;">
+        <a href="{{ url_for('teacher.login') }}" class="btn btn-primary" style="flex: 1; text-align: center; justify-content: center; background: #059669; border-color: #059669;">
+          Lecturer Administration →
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PLATFORM CAPABILITIES GRID -->
+  <div style="margin-top: 3.5rem;">
+    <h3 style="font-size: 1.25rem; font-weight: 700; text-align: center; color: #e2e8f0; margin-bottom: 1.5rem;">
+      Core Architecture & Intelligent Features
+    </h3>
+
+    <div class="grid grid-4" style="gap: 1.25rem;">
+      <div class="card" style="padding: 1.25rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border);">
+        <span style="font-size: 1.7rem; display: block; margin-bottom: 0.5rem;">👁️</span>
+        <strong style="font-size: 0.95rem; color: #f8fafc; display: block; margin-bottom: 0.35rem;">Multimodal Vision OCR</strong>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.5;">
+          Transcribes student handwritten text, circuit diagrams, and mathematical formulas into editable technical answers.
+        </p>
+      </div>
+
+      <div class="card" style="padding: 1.25rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border);">
+        <span style="font-size: 1.7rem; display: block; margin-bottom: 0.5rem;">📚</span>
+        <strong style="font-size: 0.95rem; color: #f8fafc; display: block; margin-bottom: 0.35rem;">Syllabus Grounding</strong>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.5;">
+          Upload course PDFs, Word files, or notes. AI strictly confines question generation and rubrics to your curriculum.
+        </p>
+      </div>
+
+      <div class="card" style="padding: 1.25rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border);">
+        <span style="font-size: 1.7rem; display: block; margin-bottom: 0.5rem;">🗄️</span>
+        <strong style="font-size: 0.95rem; color: #f8fafc; display: block; margin-bottom: 0.35rem;">Multi-Server Engine</strong>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.5;">
+          Seamlessly coordinates Firebase, MySQL, Supabase PG, and Local JSON stores with 8-level priority routing.
+        </p>
+      </div>
+
+      <div class="card" style="padding: 1.25rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border);">
+        <span style="font-size: 1.7rem; display: block; margin-bottom: 0.5rem;">📱</span>
+        <strong style="font-size: 0.95rem; color: #f8fafc; display: block; margin-bottom: 0.35rem;">Local Mobile Upload</strong>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0; line-height: 1.5;">
+          Connect mobile phones on the same Wi-Fi network for high-speed page-by-page script photography and upload.
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

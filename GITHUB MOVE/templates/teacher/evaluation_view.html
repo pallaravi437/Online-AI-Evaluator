@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Evaluate Script - {{ submission.students.full_name if submission.students else 'Student' }}{% endblock %}
+
+{% block content %}
+<!-- Top Context Bar -->
+<div class="card" style="margin-bottom: 1.25rem; padding: 1rem 1.5rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <span class="badge badge-info">{{ assessment.title }}</span>
+      <h2 style="font-size: 1.35rem; font-weight: 700; margin-top: 0.25rem;">
+        Evaluation: {{ submission.students.full_name if submission.students else 'Student' }}
+      </h2>
+      <p style="color: var(--text-muted); font-size: 0.8rem;">
+        PIN: <strong>{{ submission.students.pin if submission.students else '26054-MEE' }}</strong> • Receipt: <code>{{ submission.submission_receipt_code }}</code> • Submitted: {{ submission.submitted_at | to_kolkata_time }}
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <!-- Trigger AI Evaluation Button -->
+      <button type="button" class="btn btn-primary" id="btn-run-ai" onclick="runAIEvaluation('{{ submission.id }}')">
+        ✨ Run Gemini Multimodal AI Evaluation
+      </button>
+
+      <!-- Approve Marks Button -->
+      <button type="button" class="btn btn-success" id="btn-approve-all" onclick="approveOfficialMarks('{{ submission.id }}')">
+        ✓ Commit Official Marks & Audit
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Split Screen Layout -->
+<div style="display: grid; grid-template-columns: 45% 55%; gap: 1.25rem; align-items: start;">
+  
+  <!-- Left Column: Answer Script Pages Viewer -->
+  <div class="card" style="position: sticky; top: 80px; max-height: calc(100vh - 110px); overflow-y: auto; padding: 1rem;">
+    <div class="card-header" style="margin-bottom: 0.75rem;">
+      <h3 class="card-title" style="font-size: 1rem;">📄 Answer Script Pages ({{ pages | length }})</h3>
+      <div style="font-size: 0.8rem; color: var(--text-muted);">
+        Private Supabase Storage
+      </div>
+    </div>
+
+    <!-- Page Switcher Tabs -->
+    {% if pages %}
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+        {% for p in pages %}
+          <button type="button" class="btn btn-sm {% if loop.first %}btn-primary{% else %}btn-secondary{% endif %}" onclick="selectPageImage('{{ loop.index0 }}', this)" id="page-tab-{{ loop.index0 }}">
+            Page {{ p.page_number }} (Q{{ p.question_id | string | truncate(6, true, '') }})
+          </button>
+        {% endfor %}
+      </div>
+
+      <!-- Main Viewer Area -->
+      <div style="background: #0f172a; border: 1px solid var(--border); border-radius: var(--radius-sm); text-align: center; min-height: 480px; display: flex; align-items: center; justify-content: center; overflow: hidden;" id="viewer-container">
+        <div style="color: var(--text-muted); font-size: 0.85rem; padding: 2rem;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">📜</div>
+          <p>Handwritten scripts, circuit schematics, and derivations are stored in private storage.</p>
+          <p style="font-size: 0.75rem; color: #64748b; margin-top: 0.5rem;">
+            Storage Path: <code>{{ pages[0].storage_path }}</code>
+          </p>
+        </div>
+      </div>
+    {% else %}
+      <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+        No answer pages uploaded for this submission.
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Right Column: Question-wise AI Evaluation & Mark Approval -->
+  <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+    {% for q in assessment.questions %}
+      {% set q_id = q.id %}
+      {% set ev = evaluations.get(q_id, {}) %}
+      
+      <div class="card" id="eval-card-{{ q_id }}" style="border-top: 3px solid var(--secondary);">
+        <div class="card-header">
+          <div>
+            <span class="badge badge-primary">Q{{ q.question_number }}</span>
+            <span style="font-weight: 600; font-size: 0.95rem; margin-left: 0.35rem;">
+              Max: {{ q.max_marks }} Marks
+            </span>
+          </div>
+
+          <!-- Score Controls -->
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted);">Approved Marks:</label>
+            <input type="number" 
+                   id="input-mark-{{ q_id }}" 
+                   class="form-control" 
+                   style="width: 80px; font-weight: 700; color: #34d399; text-align: center; padding: 0.3rem;"
+                   value="{{ ev.approved_marks if ev.approved_marks is not none else ev.ai_marks_awarded or (q.max_marks * 0.8) | round(1) }}" 
+                   step="0.5" 
+                   min="0" 
+                   max="{{ q.max_marks }}">
+          </div>
+        </div>
+
+        <!-- Question Prompt -->
+        <div style="font-size: 0.88rem; color: #cbd5e1; background: #0f172a; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem;">
+          {{ q.question_text }}
+        </div>
+
+        <!-- Attached Question Reference Figure -->
+        {% if q.question_image_url %}
+          <div style="margin-bottom: 0.75rem; background: #0b1120; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem; text-align: center;">
+            <div style="font-size: 0.75rem; color: var(--secondary); font-weight: 600; margin-bottom: 0.35rem; text-align: left;">
+              📸 Attached Question Reference Figure:
+            </div>
+            <a href="{{ q.question_image_url }}" target="_blank" title="Click to view full image in new tab">
+              <img src="{{ q.question_image_url }}" alt="Figure for Q{{ q.question_number }}" style="max-width: 100%; max-height: 220px; border-radius: var(--radius-sm); object-fit: contain;">
+            </a>
+          </div>
+        {% endif %}
+
+        <!-- AI Evaluation Details (Dynamic / Saved) -->
+        <div id="ai-details-{{ q_id }}">
+          {% if ev %}
+            <!-- Review Warning -->
+            {% if ev.ai_lecturer_review_warning %}
+              <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); padding: 0.65rem 0.95rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem; font-size: 0.82rem; color: #fde68a;">
+                ⚠️ <strong>Lecturer Review Warning:</strong> {{ ev.ai_warning_reason or 'Unclear handwriting in calculations.' }}
+              </div>
+            {% endif %}
+
+            <!-- Rubric Breakdown -->
+            {% if ev.ai_criterion_breakdown %}
+              <div style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+                <strong style="color: var(--text-muted); display: block; margin-bottom: 0.35rem;">Criterion Marks:</strong>
+                {% for c in ev.ai_criterion_breakdown %}
+                  <div style="display: flex; justify-content: space-between; padding: 0.25rem 0; border-bottom: 1px dashed var(--border);">
+                    <span>{{ c.title }}</span>
+                    <span style="color: #34d399; font-weight: 600;">{{ c.marks_awarded }} / {{ c.max_marks }}</span>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <!-- Concepts recognized -->
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+              <span style="color: #6ee7b7;">✓ Correct Concepts:</span> {{ ev.ai_correct_concepts | join(', ') if ev.ai_correct_concepts else 'Standard formulas verified.' }}
+            </div>
+
+            <!-- Student Feedback -->
+            {% if ev.ai_student_feedback %}
+              <div style="font-size: 0.82rem; color: #cbd5e1; background: rgba(255,255,255,0.03); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); margin-bottom: 0.75rem;">
+                💬 <strong>AI Feedback:</strong> {{ ev.ai_student_feedback }}
+              </div>
+            {% endif %}
+          {% else %}
+            <div style="font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin-bottom: 0.75rem;">
+              Pending AI Evaluation. Click "Run Gemini Multimodal AI Evaluation" above to evaluate this script.
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Lecturer Remarks -->
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="font-size: 0.75rem; color: var(--text-muted);">Lecturer Remark / Moderation Note:</label>
+          <input type="text" id="comment-{{ q_id }}" class="form-control" style="font-size: 0.8rem; padding: 0.35rem 0.65rem;" placeholder="e.g. Approved. Neat CE diagram with correct current arrows." value="{{ ev.lecturer_comments or '' }}">
+        </div>
+
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  async function runAIEvaluation(submissionId) {
+    const btn = document.getElementById('btn-run-ai');
+    btn.disabled = true;
+    btn.innerText = "⏳ Gemini AI is Evaluating Script...";
+
+    try {
+      const resp = await fetch("{{ url_for('teacher.api_run_ai_evaluation') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ submission_id: submissionId })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        alert("Gemini AI Evaluation Complete! AI marks have been loaded for review.");
+        window.location.reload();
+      } else {
+        alert("Evaluation Error: " + data.message);
+      }
+    } catch (e) {
+      alert("Network error: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "✨ Run Gemini Multimodal AI Evaluation";
+    }
+  }
+
+  async function approveOfficialMarks(submissionId) {
+    const marksObj = {};
+    const commentsObj = {};
+
+    {% for q in assessment.questions %}
+      marksObj["{{ q.id }}"] = document.getElementById("input-mark-{{ q.id }}").value;
+      commentsObj["{{ q.id }}"] = document.getElementById("comment-{{ q.id }}").value;
+    {% endfor %}
+
+    const btn = document.getElementById('btn-approve-all');
+    btn.disabled = true;
+    btn.innerText = "Recording in Audit Log...";
+
+    try {
+      const resp = await fetch("{{ url_for('teacher.api_approve_marks') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          submission_id: submissionId,
+          marks: marksObj,
+          comments: commentsObj,
+          overall_comment: "Script evaluated and verified against BEA marking scheme."
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        alert(`Success! Total Official Marks: ${data.total_official_marks} (${data.pass_status.toUpperCase()}). Recorded in audit ledger.`);
+        window.location.href = "{{ url_for('teacher.dashboard', assessment_id=assessment.id) }}";
+      } else {
+        alert("Approval failed: " + data.message);
+      }
+    } catch (e) {
+      alert("Network error: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "✓ Commit Official Marks & Audit";
+    }
+  }
+</script>
+{% endblock %}

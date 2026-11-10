@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Lecturer Sign Up – BEA AI Assessment System{% endblock %}
+
+{% block content %}
+<div style="max-width: 540px; margin: 2.5rem auto;">
+  <div class="card" style="padding: 2rem;">
+
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.5rem; font-weight: 700;">👨‍🏫 Lecturer Registration</h2>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.4rem;">
+        Create your lecturer account. Admin approval is required before you can log in.
+      </p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}" style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: 6px;
+          background: {% if category == 'success' %}rgba(16,185,129,0.12){% elif category == 'danger' %}rgba(239,68,68,0.12){% else %}rgba(99,102,241,0.12){% endif %};
+          color: {% if category == 'success' %}#6ee7b7{% elif category == 'danger' %}#fca5a5{% else %}#a5b4fc{% endif %};
+          font-size: 0.85rem; word-break: break-all;">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form action="{{ url_for('teacher.signup') }}" method="POST">
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" name="full_name" class="form-control" placeholder="e.g. Dr. S. Pallavi" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username *</label>
+          <input type="text" name="username" class="form-control" placeholder="e.g. pallavi_bea" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address *</label>
+        <input type="email" name="email" class="form-control" placeholder="lecturer@bea.edu" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <input type="password" name="password" class="form-control" placeholder="Minimum 8 characters" minlength="8" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mobile Number</label>
+        <input type="tel" name="mobile" class="form-control" placeholder="e.g. 9123456780">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Subject Name * <span style="color: var(--secondary); font-size:0.78rem;">(This will be your subject in the system)</span></label>
+        <input type="text" name="subject" class="form-control" placeholder="e.g. Basic Electronics and Amplifiers" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Specialization</label>
+        <input type="text" name="specialization" class="form-control" placeholder="e.g. Analog Electronics, Power Electronics">
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.75rem;">
+        Register Lecturer Account →
+      </button>
+    </form>
+
+    <p style="margin-top: 1.25rem; text-align: center; font-size: 0.82rem; color: var(--text-muted);">
+      Already have an account?
+      <a href="{{ url_for('teacher.login') }}" style="color: var(--primary);">Sign in here</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
+

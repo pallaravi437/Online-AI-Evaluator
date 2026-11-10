@@ -1,0 +1,57 @@
+{
+  "supabase_main": {
+    "server_id": "supabase_main",
+    "server_name": "Supabase Primary Cloud (PostgreSQL)",
+    "provider": "supabase",
+    "endpoint_url": "https://your-project-id.supabase.co",
+    "is_active": false,
+    "is_default": true,
+    "config": {
+      "url": "https://your-project-id.supabase.co",
+      "anon_key": "your-supabase-anon-key",
+      "service_role_key": "your-supabase-service-role-key",
+      "db_url": "",
+      "storage_bucket": "bea-answer-scripts"
+    }
+  },
+  "mysql_primary": {
+    "server_id": "mysql_primary",
+    "server_name": "College MySQL Academic Database",
+    "provider": "mysql",
+    "endpoint_url": "localhost",
+    "is_active": true,
+    "is_default": false,
+    "config": {
+      "host": "localhost",
+      "port": 3306,
+      "user": "root",
+      "password": "your-mysql-password",
+      "database": "bea_college_academic",
+      "charset": "utf8mb4"
+    }
+  },
+  "firebase_primary": {
+    "server_id": "firebase_primary",
+    "server_name": "Firebase Institutional Cloud (Firestore)",
+    "provider": "firebase",
+    "endpoint_url": "your-firebase-project-id",
+    "is_active": true,
+    "is_default": false,
+    "config": {
+      "project_id": "your-firebase-project-id",
+      "storage_bucket": "your-project.appspot.com",
+      "credentials_json": "config/firebase-service-account.json"
+    }
+  },
+  "local_default": {
+    "server_id": "local_default",
+    "server_name": "Local Storage & JSON Manifest",
+    "provider": "local",
+    "endpoint_url": "filesystem://static/uploads",
+    "is_active": true,
+    "is_default": false,
+    "config": {
+      "base_upload_path": "static/uploads"
+    }
+  }
+}

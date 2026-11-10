@@ -1,0 +1,26 @@
+{
+  "category_defaults": {
+    "academic_materials": "supabase_main",
+    "syllabus": "supabase_main",
+    "students": "mysql_primary",
+    "examinations": "supabase_main",
+    "ai_evaluations": "supabase_main",
+    "application_data": "supabase_main"
+  },
+  "overrides": [
+    {
+      "id": "override-sample-01",
+      "category": "academic_materials",
+      "material_category": "textbook",
+      "server_id": "supabase_main",
+      "notes": "Large textbook PDFs stored in Supabase Object Storage"
+    },
+    {
+      "id": "override-sample-02",
+      "category": "students",
+      "department": "ECE",
+      "server_id": "mysql_primary",
+      "notes": "Student registration and academic history routed to College MySQL"
+    }
+  ]
+}

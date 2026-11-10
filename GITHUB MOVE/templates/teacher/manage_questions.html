@@ -1,0 +1,1450 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Questions - {{ assessment.title }}{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 1.5rem;">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span class="badge badge-info">{{ assessment.subject_code }}</span>
+        <span class="badge badge-primary">{{ assessment.assessment_type | replace('_', ' ') | title }}</span>
+      </div>
+      <h1 style="font-size: 1.5rem; font-weight: 700; margin-top: 0.35rem;">
+        {{ assessment.title }} - Question Builder
+      </h1>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">
+        Target Total Marks: <strong>{{ assessment.max_marks }}</strong> • Pass Criteria: <strong>{{ assessment.pass_percentage }}%</strong>
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      <a href="{{ url_for('teacher.manage_assessments') }}" class="btn btn-secondary">
+        ← Back to Assessments
+      </a>
+      <a href="{{ url_for('teacher.manage_materials') }}" class="btn btn-secondary" style="border-color: #6366f1; color: #818cf8; font-weight: 600;">
+        📚 Syllabus & Materials
+      </a>
+      <button onclick="openUploadDocModal()" class="btn btn-secondary" style="border-color: #10b981; color: #34d399; font-weight: 600;">
+        📄 Upload Doc / Image (PDF, Word, Image)
+      </button>
+      <button onclick="document.getElementById('ai-prompt-modal').style.display='flex'" class="btn btn-secondary" style="border-color: #a855f7; color: #c084fc;">
+        ✨ AI Question Prompt Generator
+      </button>
+      <button onclick="document.getElementById('import-forms-modal').style.display='flex'" class="btn btn-secondary" style="border-color: #f59e0b; color: #fbbf24;">
+        🔗 Google Forms Link
+      </button>
+      <button onclick="document.getElementById('upload-html-modal').style.display='flex'" class="btn btn-secondary" style="border-color: #0284c7; color: #38bdf8;">
+        📁 HTML Upload / Paste
+      </button>
+      <button onclick="document.getElementById('add-question-modal').style.display='flex'" class="btn btn-primary">
+        + Add Question Manually
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Questions Summary & List -->
+<div class="card-header">
+  <h2 class="card-title">
+    📋 Configured Questions ({{ assessment.questions | length }})
+  </h2>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 2.5rem;">
+  {% for q in assessment.questions %}
+    <div class="card" style="border-top: 3px solid var(--secondary);">
+      <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          <span class="badge badge-primary" style="font-size: 0.9rem;">Question {{ q.question_number }}</span>
+          <span style="font-weight: 700; color: #34d399; font-size: 1rem;">{{ q.max_marks }} Marks</span>
+          {% if q.question_type == 'mcq' or q.option_a %}
+            <span class="badge badge-info" style="background: rgba(14, 165, 233, 0.2); border: 1px solid #0284c7; color: #38bdf8;">
+              MCQ (4 Options)
+            </span>
+          {% else %}
+            <span class="badge badge-secondary" style="font-size: 0.75rem;">Descriptive</span>
+          {% endif %}
+          <span class="badge {% if q.difficulty == 'easy' %}badge-success{% elif q.difficulty == 'hard' %}badge-danger{% else %}badge-warning{% endif %}">
+            {{ q.difficulty | upper }}
+          </span>
+          {% if q.requires_diagram %}
+            <span class="badge badge-info">Requires Circuit Diagram</span>
+          {% endif %}
+          {% if q.requires_numerical %}
+            <span class="badge badge-warning">Numerical Calculation</span>
+          {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModal('{{ q.id or q.question_number }}')">✏️ Edit</button>
+          <form action="{{ url_for('teacher.delete_question', assessment_id=assessment.id, question_id=q.id) }}" method="POST" onsubmit="return confirm('Delete Question {{ q.question_number }}?')">
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Question Text -->
+      <div style="font-size: 1rem; color: var(--text-main); background: #0f172a; padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; border-left: 3px solid var(--primary);">
+        {{ q.question_text }}
+      </div>
+
+      <!-- MCQ 4 Options Display Grid -->
+      {% if q.question_type == 'mcq' or q.option_a %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.65rem; margin-bottom: 1rem;">
+          <div style="padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid {% if q.correct_option == 'A' %}#10b981{% else %}var(--border){% endif %}; background: {% if q.correct_option == 'A' %}rgba(16, 185, 129, 0.14){% else %}#090d16{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; color: {% if q.correct_option == 'A' %}#34d399{% else %}var(--secondary){% endif %};">(A)</span>
+              {% if q.correct_option == 'A' %}<span class="badge badge-success" style="font-size: 0.65rem;">✓ Correct Key</span>{% endif %}
+            </div>
+            <div style="margin-top: 0.25rem; font-size: 0.88rem; color: #e2e8f0;">{{ q.option_a or '(Option A)' }}</div>
+          </div>
+
+          <div style="padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid {% if q.correct_option == 'B' %}#10b981{% else %}var(--border){% endif %}; background: {% if q.correct_option == 'B' %}rgba(16, 185, 129, 0.14){% else %}#090d16{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; color: {% if q.correct_option == 'B' %}#34d399{% else %}var(--secondary){% endif %};">(B)</span>
+              {% if q.correct_option == 'B' %}<span class="badge badge-success" style="font-size: 0.65rem;">✓ Correct Key</span>{% endif %}
+            </div>
+            <div style="margin-top: 0.25rem; font-size: 0.88rem; color: #e2e8f0;">{{ q.option_b or '(Option B)' }}</div>
+          </div>
+
+          <div style="padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid {% if q.correct_option == 'C' %}#10b981{% else %}var(--border){% endif %}; background: {% if q.correct_option == 'C' %}rgba(16, 185, 129, 0.14){% else %}#090d16{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; color: {% if q.correct_option == 'C' %}#34d399{% else %}var(--secondary){% endif %};">(C)</span>
+              {% if q.correct_option == 'C' %}<span class="badge badge-success" style="font-size: 0.65rem;">✓ Correct Key</span>{% endif %}
+            </div>
+            <div style="margin-top: 0.25rem; font-size: 0.88rem; color: #e2e8f0;">{{ q.option_c or '(Option C)' }}</div>
+          </div>
+
+          <div style="padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid {% if q.correct_option == 'D' %}#10b981{% else %}var(--border){% endif %}; background: {% if q.correct_option == 'D' %}rgba(16, 185, 129, 0.14){% else %}#090d16{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; color: {% if q.correct_option == 'D' %}#34d399{% else %}var(--secondary){% endif %};">(D)</span>
+              {% if q.correct_option == 'D' %}<span class="badge badge-success" style="font-size: 0.65rem;">✓ Correct Key</span>{% endif %}
+            </div>
+            <div style="margin-top: 0.25rem; font-size: 0.88rem; color: #e2e8f0;">{{ q.option_d or '(Option D)' }}</div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Optional Attached Circuit Diagram / Question Figure -->
+      {% if q.question_image_url %}
+        <div style="margin-bottom: 1rem; text-align: center; background: #0b1120; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.75rem;">
+          <strong style="color: var(--secondary); font-size: 0.8rem; display: block; margin-bottom: 0.5rem;">
+            📸 Attached Question Reference Figure:
+          </strong>
+          <img src="{{ q.question_image_url }}" alt="Figure for Question {{ q.question_number }}" style="max-width: 100%; max-height: 280px; border-radius: var(--radius-sm);">
+        </div>
+      {% endif %}
+
+      <!-- Model Answer Reference -->
+      <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); padding: 0.85rem 1rem; margin-bottom: 1rem; font-size: 0.85rem;">
+        <strong style="color: #6ee7b7; display: block; margin-bottom: 0.25rem;">
+          🎯 Official Model Answer (Evaluated by Gemini AI):
+        </strong>
+        <p style="color: #e2e8f0; line-height: 1.5;">{{ q.model_answer }}</p>
+        {% if q.acceptable_alternatives %}
+          <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.1); color: #94a3b8; font-size: 0.8rem;">
+            <strong>Acceptable Alternatives:</strong> {{ q.acceptable_alternatives }}
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Rubric Criteria Breakdown -->
+      {% set criteria = q.marking_criteria or q.criteria %}
+      {% if criteria %}
+        <div style="background: #0f172a; padding: 0.75rem 1rem; border-radius: var(--radius-sm);">
+          <strong style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">
+            Marking Scheme Rubric (Criterion-wise Breakdown):
+          </strong>
+          <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+            {% for c in criteria %}
+              <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.25rem 0; border-bottom: 1px dashed rgba(255,255,255,0.06);">
+                <span>• {{ c.criterion_title }} {% if c.description %}<span style="color: var(--text-muted);">({{ c.description }})</span>{% endif %}</span>
+                <strong style="color: var(--secondary);">{{ c.max_marks }} Marks</strong>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="card" style="text-align: center; padding: 3rem;">
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">No questions configured for this assessment yet.</p>
+      <button onclick="document.getElementById('add-question-modal').style.display='flex'" class="btn btn-primary">
+        + Add Question 1
+      </button>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Modal: Upload / Paste HTML Questions -->
+<div id="upload-html-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 650px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div class="card-header">
+      <h3 class="card-title">📁 Method 2: HTML Upload / Paste Questions</h3>
+      <button onclick="document.getElementById('upload-html-modal').style.display='none'" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+    <form action="{{ url_for('teacher.upload_html_questions', assessment_id=assessment.id) }}" method="POST" enctype="multipart/form-data">
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.4;">
+        Upload an <code>.html</code> file or paste HTML question blocks. The parser identifies questions, 4 options (A, B, C, D), correct answers, and explanations. <em>(Untrusted JavaScript is never executed)</em>.
+      </p>
+      
+      <div class="form-group" style="background: rgba(14, 165, 233, 0.08); border: 1px dashed #0284c7; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+        <label class="form-label" for="bulk_html_file" style="color: #38bdf8; font-weight: 600;">Option A: Upload HTML File (.html, .htm)</label>
+        <input type="file" id="bulk_html_file" name="questions_file" accept=".html,.htm" class="form-control" style="background: var(--surface);">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="pasted_html" style="font-weight: 600;">Option B: Or Paste HTML Question Code Here</label>
+        <textarea id="pasted_html" name="pasted_html" class="form-control" rows="6" placeholder="<div class='question'>1. Define Transistor alpha...<div class='option'>A) ...</div></div>"></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('upload-html-modal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-primary">Extract & Import Questions →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Document & Image Question Uploader -->
+<div id="upload-doc-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 620px; width: 100%; max-height: 90vh; overflow-y: auto; border-top: 4px solid #10b981;">
+    <div class="card-header">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.3rem;">📄</span>
+        <h3 class="card-title">Upload Question Paper Document or Image</h3>
+      </div>
+      <button type="button" onclick="closeUploadDocModal()" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5;">
+      Upload exam papers as <strong>PDF (.pdf)</strong>, <strong>Word (.docx, .doc)</strong>, or <strong>Images (.jpg, .jpeg, .png, .webp)</strong>.
+      The system automatically eliminates college headers, exam guidelines, student name/roll number blanks, and footers, extracting only genuine questions for your confirmation.
+    </p>
+
+    <form id="doc-upload-form" onsubmit="event.preventDefault(); startDocumentExtraction();">
+      <div class="form-group" style="margin-bottom: 1.25rem;">
+        <label class="form-label" for="doc_file_input" style="color: #34d399; font-weight: 600;">
+          Select Question Paper File (PDF, Word, or Image)
+        </label>
+        <div style="border: 2px dashed rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 1.5rem; text-align: center; background: rgba(16, 185, 129, 0.05); cursor: pointer;" onclick="document.getElementById('doc_file_input').click()">
+          <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">📁</span>
+          <strong id="doc_file_name_display" style="display: block; color: var(--text); font-size: 0.95rem;">
+            Click to browse or drag & drop file
+          </strong>
+          <span style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+            Supported: .pdf, .docx, .doc, .jpg, .jpeg, .png, .webp (up to 15MB)
+          </span>
+        </div>
+        <input type="file" id="doc_file_input" name="document_file" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp" style="display: none;" onchange="handleDocFileSelection(this)">
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="doc_default_marks">Default Marks / Question</label>
+          <input type="number" id="doc_default_marks" name="default_marks" class="form-control" value="5.0" min="0.5" max="50" step="0.5">
+          <small style="color: var(--text-muted); font-size: 0.75rem;">Default for descriptive (MCQs default to 1.0)</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="doc_subject_context">Subject Context</label>
+          <input type="text" id="doc_subject_context" name="subject" class="form-control" value="{{ assessment.subject_code }} - {{ assessment.title }}">
+          <small style="color: var(--text-muted); font-size: 0.75rem;">Guides technical formula & keyword recognition</small>
+        </div>
+      </div>
+
+      <!-- Live extraction progress indicator -->
+      <div id="doc-extract-status" style="display: none; margin-top: 1rem; padding: 1rem; border-radius: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div class="spinner" style="border-top-color: #10b981;"></div>
+          <div>
+            <strong id="doc-extract-status-text" style="color: #34d399; font-size: 0.9rem;">
+              Analyzing document and stripping out non-question noise...
+            </strong>
+            <p style="margin: 0.25rem 0 0; font-size: 0.75rem; color: var(--text-muted);">
+              Detecting questions, options, rubrics, and formulas. This takes a few seconds...
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div id="doc-extract-error" style="display: none; margin-top: 1rem; padding: 0.85rem; border-radius: 8px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.85rem;">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeUploadDocModal()">Cancel</button>
+        <button type="submit" id="btn-start-extract" class="btn btn-primary" style="background: #10b981; border-color: #10b981;">
+          ✨ Extract & Review Questions →
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Confirmation & Review Modal for Lecturer -->
+<div id="confirm-doc-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1001; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 960px; width: 100%; max-height: 92vh; display: flex; flex-direction: column; border-top: 4px solid #34d399; padding: 0;">
+    <!-- Modal Header -->
+    <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); margin: 0;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span class="badge badge-success">Noise Filtered ✓</span>
+          <span class="badge badge-info" id="confirm-source-badge">PDF / Document</span>
+        </div>
+        <h2 class="card-title" style="font-size: 1.25rem; margin-top: 0.35rem;">
+          Review & Confirm Detected Questions (<span id="detected-count-display">0</span>)
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.2rem;">
+          College headers, general guidelines, student blanks, and footers were removed. Review, edit question text, marks, or options before saving.
+        </p>
+      </div>
+      <button type="button" onclick="closeConfirmDocModal()" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <!-- Scrollable Question List Body -->
+    <div id="detected-questions-container" style="padding: 1.5rem; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 1.25rem;">
+      <!-- Populated via JavaScript -->
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border); background: var(--card-bg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button type="button" onclick="addBlankQuestionToReview()" class="btn btn-sm btn-secondary" style="border-color: #38bdf8; color: #38bdf8;">
+          + Add Question
+        </button>
+        <button type="button" onclick="backToUploadModal()" class="btn btn-sm btn-secondary">
+          ← Upload Another File
+        </button>
+      </div>
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <button type="button" onclick="closeConfirmDocModal()" class="btn btn-secondary">
+          Cancel
+        </button>
+        <button type="button" id="btn-save-confirmed-questions" onclick="saveConfirmedQuestions()" class="btn btn-primary" style="background: #10b981; border-color: #10b981; font-weight: 600;">
+          ✅ Confirm & Save All Questions to Assessment
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Google Forms Link Importer -->
+<div id="import-forms-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 600px; width: 100%;">
+    <div class="card-header">
+      <h3 class="card-title">🔗 Method 3: Import from Google Forms</h3>
+      <button onclick="document.getElementById('import-forms-modal').style.display='none'" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+    <form action="{{ url_for('teacher.import_google_forms', assessment_id=assessment.id) }}" method="POST">
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.5;">
+        Provide a link to a Google Form. The system will retrieve the public form schema, extract questions and multiple-choice options, and pre-set them for your review.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="form_url" style="color: #fbbf24; font-weight: 600;">Google Forms URL</label>
+        <input type="url" id="form_url" name="form_url" class="form-control" placeholder="https://docs.google.com/forms/d/e/.../viewform" required>
+        <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+          Note: If the form is restricted to a private Google Workspace organization or requires student login, access will be blocked. In that case, save the form page as HTML and use the HTML upload method.
+        </small>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('import-forms-modal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="background: #d97706; border-color: #d97706;">Retrieve & Import Form →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: AI Question Generation Modal -->
+<div id="ai-prompt-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div class="card-header">
+      <div>
+        <span class="badge badge-primary" style="background: #9333ea;">AI Question Generator</span>
+        <h3 class="card-title" style="margin-top: 0.25rem;">
+          ✨ Auto-Generate Assessment Questions
+        </h3>
+      </div>
+      <button onclick="document.getElementById('ai-prompt-modal').style.display='none'" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <!-- Mode Selector Tabs -->
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+      <button type="button" id="tab-btn-auto" onclick="switchAiTab('auto')" class="btn btn-sm btn-primary">
+        ⚡ Direct 1-Click AI Generate
+      </button>
+      <button type="button" id="tab-btn-prompt" onclick="switchAiTab('prompt')" class="btn btn-sm btn-secondary">
+        📋 Copy Prompt for Gemini/ChatGPT
+      </button>
+    </div>
+
+    <!-- Tab 1: 1-Click Auto Generation Form -->
+    <div id="ai-tab-auto">
+      <!-- Status Banner displaying configured model and API key status -->
+      <div style="background: rgba(147, 51, 234, 0.12); border: 1px solid rgba(147, 51, 234, 0.35); border-radius: 8px; padding: 0.65rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem;">
+        <div>
+          <span>🤖 AI Engine: <strong style="color: #38bdf8;">Auto-Connected ({{ active_model or config_model or 'gemini-3.1-flash-lite' }})</strong></span>
+        </div>
+        <div>
+          {% if has_api_key %}
+            <span class="badge badge-success" style="font-size: 0.75rem;">AI API Key Active ✓</span>
+          {% else %}
+            <span class="badge badge-warning" style="font-size: 0.75rem;">API Key Not Set (Using Offline Bank)</span>
+            <a href="{{ url_for('admin.settings') }}" target="_blank" style="color: #38bdf8; text-decoration: underline; margin-left: 0.4rem; font-weight: 600;">Configure in Settings ⚙️</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <form action="{{ url_for('teacher.ai_generate_questions', assessment_id=assessment.id) }}" method="POST" onsubmit="document.getElementById('ai-generating-spinner').style.display='block'; document.getElementById('ai-submit-btn').disabled=true;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Generate bespoke, syllabus-aligned questions, verified answer keys, and marking rubrics for <strong>any academic subject</strong> using your configured AI engine (Gemini, ChatGPT, Claude, OpenCode)!
+        </p>
+
+        <!-- Grounding Syllabus & Materials Selector -->
+        <div class="form-group" style="background: rgba(56, 189, 248, 0.07); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 0.85rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label class="form-label" for="auto_material_id" style="font-weight: 700; color: #38bdf8; margin: 0; font-size: 0.85rem;">
+              📚 Ground in Uploaded Syllabus / Material (Recommended)
+            </label>
+            <a href="{{ url_for('teacher.manage_materials') }}" target="_blank" style="font-size: 0.75rem; color: #818cf8; text-decoration: underline; font-weight: 600;">
+              Manage / Upload Materials ↗
+            </a>
+          </div>
+          <select id="auto_material_id" name="material_id" class="form-control" onchange="handleMaterialSelected(this)">
+            <option value="">-- Auto-detect from Subject / Assessment (or None) --</option>
+            {% for m in materials or [] %}
+              <option value="{{ m.id }}" data-subject="{{ m.subject_code or '' }}" data-unit="{{ m.unit_topic or '' }}" data-title="{{ m.title }}">
+                [{{ m.material_type|replace('_', ' ')|upper }}] {{ m.title }} {% if m.subject_code %}({{ m.subject_code }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <small style="color: #94a3b8; font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+            When selected, AI strictly restricts questions and rubrics to the formulas, units, definitions, and topics extracted from this document!
+          </small>
+        </div>
+
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="auto_subject" style="font-weight: 600; color: #38bdf8;">
+              🎓 Subject / Academic Discipline
+            </label>
+            <input type="text" id="auto_subject" name="subject" class="form-control" placeholder="e.g. Chemistry, Physics, Computer Science, Mathematics, History" value="{{ assessment.subject_code or 'General Academic' }}" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="auto_lesson" style="font-weight: 600; color: #c084fc;">
+              📖 Chapter / Lesson / Unit Name
+            </label>
+            <input type="text" id="auto_lesson" name="lesson_name" class="form-control" placeholder="e.g. Periodic Table, Data Structures, Calculus" value="{{ assessment.unit_topic or '' }}" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label class="form-label" for="auto_topics" style="font-weight: 600; color: #c084fc; margin-bottom: 0;">
+              🎯 Specific Topics & Sub-topics
+            </label>
+            <button type="button" class="btn btn-sm" onclick="askAiForSubtopics()" style="background: rgba(168, 85, 247, 0.15); border: 1px solid #a855f7; color: #c084fc; font-size: 0.75rem; padding: 0.2rem 0.65rem; border-radius: 4px; cursor: pointer;">
+              🧠 Ask AI to Suggest Topics & Keywords
+            </button>
+          </div>
+          <input type="text" id="auto_topics" name="topics" class="form-control" placeholder="e.g. Modern periodic law, s-p-d-f blocks, atomic radius trends" value="{{ assessment.title or '' }}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="auto_keywords" style="font-weight: 600; color: #34d399;">
+            🔑 Key Words & Essential Terminology (Guides AI Focus)
+          </label>
+          <input type="text" id="auto_keywords" name="keywords" class="form-control" placeholder="e.g. Moseley, electronegativity, ionization energy, noble gases, Pauling scale">
+          <small style="color: var(--text-muted); font-size: 0.75rem;">
+            The AI model will explicitly formulate questions and marking rubrics around these keywords.
+          </small>
+        </div>
+
+        <!-- Interactive AI Suggestions Box (Populated by Ask AI button) -->
+        <div id="ai-suggestions-box" style="display: none; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <strong style="color: #c084fc; font-size: 0.85rem;" id="ai-suggest-title">🧠 AI Curriculum Suggestions:</strong>
+            <button type="button" onclick="document.getElementById('ai-suggestions-box').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1rem;">&times;</button>
+          </div>
+          
+          <div style="margin-bottom: 0.75rem;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem;">Click any Sub-topic to add:</div>
+            <div id="subtopics-chips" style="display: flex; flex-wrap: wrap; gap: 0.4rem;"></div>
+          </div>
+
+          <div style="margin-bottom: 0.75rem;">
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem;">Click any Keyword to add:</div>
+            <div id="keywords-chips" style="display: flex; flex-wrap: wrap; gap: 0.4rem;"></div>
+          </div>
+
+          <div id="clarifying-questions-container" style="display: none; border-top: 1px dashed #334155; padding-top: 0.5rem; margin-top: 0.5rem;">
+            <div style="font-size: 0.75rem; color: #f59e0b; font-weight: 600; margin-bottom: 0.25rem;">💡 Questions to consider for better accuracy:</div>
+            <ul id="clarifying-questions-list" style="margin: 0; padding-left: 1.25rem; font-size: 0.8rem; color: #94a3b8;"></ul>
+          </div>
+        </div>
+
+        <div class="grid grid-3">
+          <div class="form-group">
+            <label class="form-label" for="auto_q_type">Question Format</label>
+            <select id="auto_q_type" name="question_type" class="form-control">
+              <option value="descriptive" {% if assessment.assessment_type != 'mcq_test' %}selected{% endif %}>Slip Test (Descriptive + Rubrics)</option>
+              <option value="mcq_test" {% if assessment.assessment_type == 'mcq_test' %}selected{% endif %}>MCQ Test (4 Options + Answer Key)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="auto_num_q">Number of Questions</label>
+            <input type="number" id="auto_num_q" name="num_questions" class="form-control" value="4" min="1" max="25" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="auto_marks_per_q">Marks per Question</label>
+            <input type="number" id="auto_marks_per_q" name="marks_per_question" class="form-control" value="{% if assessment.assessment_type == 'mcq_test' %}1{% else %}5{% endif %}" min="0.5" max="50" step="0.5" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="auto_difficulty">Difficulty Level</label>
+          <select id="auto_difficulty" name="difficulty" class="form-control">
+            <option value="medium" selected>Medium (Standard Analytical & Conceptual Understanding)</option>
+            <option value="easy">Easy (Direct Definitions, Fundamental Laws & Memory)</option>
+            <option value="hard">Hard (Advanced Problem Solving, In-depth Derivations & Calculations)</option>
+          </select>
+        </div>
+
+        <div id="ai-generating-spinner" style="display: none; background: rgba(168, 85, 247, 0.1); border: 1px solid #a855f7; border-radius: 8px; padding: 0.75rem; text-align: center; color: #c084fc; margin-bottom: 1rem;">
+          <span style="font-size: 1.1rem; display: inline-block; animation: spin 1s infinite linear;">⚙️</span>
+          <strong style="margin-left: 0.5rem;">Generating questions with Gemini AI ({{ active_model or config_model or 'gemini-3.5-flash' }})... Please wait...</strong>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('ai-prompt-modal').style.display='none'">Cancel</button>
+          <button type="submit" id="ai-submit-btn" class="btn btn-primary" style="background: #9333ea; border-color: #9333ea; font-weight: 700;">
+            ✨ Generate & Add Questions Automatically →
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Tab 2: Copy Prompt for External AI -->
+    <div id="ai-tab-prompt" style="display: none;">
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Generate a ready-to-copy prompt to paste into Gemini, ChatGPT, or Claude, then copy the result back here!
+      </p>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="prompt_subject">Subject / Academic Field</label>
+          <input type="text" id="prompt_subject" class="form-control" value="{{ assessment.subject_code or 'Chemistry' }}" oninput="generateAiPrompt()">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prompt_topic">Topic / Unit / Chapter</label>
+          <input type="text" id="prompt_topic" class="form-control" value="{{ assessment.unit_topic or 'Periodic Table & Periodic Properties' }}" oninput="generateAiPrompt()">
+        </div>
+      </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prompt_outcome">Learning Outcome (CO)</label>
+          <input type="text" id="prompt_outcome" class="form-control" value="CO3: Explain operation of Semiconductor Devices">
+        </div>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="form-group">
+          <label class="form-label" for="prompt_q_type">Question Format</label>
+          <select id="prompt_q_type" class="form-control" onchange="generateAiPrompt()">
+            <option value="mcq" {% if assessment.assessment_type == 'mcq_test' %}selected{% endif %}>MCQ Test</option>
+            <option value="descriptive" {% if assessment.assessment_type != 'mcq_test' %}selected{% endif %}>Slip Test (Descriptive)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prompt_count">Number of Questions</label>
+          <input type="number" id="prompt_count" class="form-control" value="5" min="1" max="50" onchange="generateAiPrompt()">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="prompt_diff">Difficulty Mix</label>
+          <select id="prompt_diff" class="form-control" onchange="generateAiPrompt()">
+            <option value="mixed">Mixed (50% Easy, 30% Med, 20% Hard)</option>
+            <option value="easy">Easy (Direct Concept & Memory)</option>
+            <option value="medium">Medium (Analytical / Circuits)</option>
+            <option value="hard">Hard (Derivations / Numerical)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+          <label class="form-label" for="generated_prompt_text" style="color: #c084fc; font-weight: 700; margin: 0;">
+            Generated Copyable AI Prompt:
+          </label>
+          <button type="button" class="btn btn-sm btn-primary" onclick="copyPromptToClipboard()" style="background: #9333ea; border-color: #9333ea; padding: 0.25rem 0.75rem; font-weight: 700;">
+            📋 COPY PROMPT
+          </button>
+        </div>
+        <textarea id="generated_prompt_text" class="form-control" rows="8" readonly style="font-family: monospace; font-size: 0.85rem; background: #090d16; color: #e2e8f0; line-height: 1.4;"></textarea>
+      </div>
+
+      <div id="copy-success-alert" style="display: none; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; text-align: center;">
+        ✓ Prompt copied to clipboard! Paste it into your preferred AI tool to generate questions.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- Modal: Add Question & Rubric -->
+<div id="add-question-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 780px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div class="card-header">
+      <h3 class="card-title">Add Question & Marking Rubric</h3>
+      <button onclick="document.getElementById('add-question-modal').style.display='none'" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <form action="{{ url_for('teacher.add_question', assessment_id=assessment.id) }}" method="POST" enctype="multipart/form-data">
+      
+      <!-- Question Type Switcher -->
+      <div class="form-group" style="background: rgba(255, 255, 255, 0.03); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <label class="form-label" style="margin-bottom: 0.5rem; font-weight: 600;">Question Type</label>
+        <div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+          <label style="cursor: pointer; display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem;">
+            <input type="radio" name="question_type" value="descriptive" {% if assessment.assessment_type != 'mcq_test' %}checked{% endif %} onchange="toggleQuestionType('add', this.value)">
+            <span>📝 Descriptive Question</span>
+          </label>
+          <label style="cursor: pointer; display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem;">
+            <input type="radio" name="question_type" value="mcq" {% if assessment.assessment_type == 'mcq_test' %}checked{% endif %} onchange="toggleQuestionType('add', this.value)">
+            <span>🔘 MCQ Test (4 Options + 1 Correct Answer)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="q_number">Question Number</label>
+          <input type="text" id="q_number" name="question_number" class="form-control" placeholder="e.g. 1 or 2a" value="{{ (assessment.questions | length) + 1 }}" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="q_marks">Marks for this Question</label>
+          <input type="number" id="q_marks" name="max_marks" class="form-control" value="{% if assessment.assessment_type == 'mcq_test' %}1{% else %}5{% endif %}" min="0.5" max="50" step="0.5" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="q_text">Question Statement</label>
+        <textarea id="q_text" name="question_text" class="form-control" rows="3" placeholder="e.g. In a Common Emitter (CE) amplifier, the phase shift between input and output voltage is:" required></textarea>
+      </div>
+
+      <!-- MCQ 4 Options & Correct Answer Selector Container -->
+      <div id="add-mcq-options-container" style="{% if assessment.assessment_type != 'mcq_test' %}display: none;{% endif %} background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+        <strong style="color: #38bdf8; font-size: 0.9rem; display: block; margin-bottom: 0.75rem;">
+          🔘 4 Multiple Choice Options (A, B, C, D):
+        </strong>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="add_opt_a" style="color: var(--secondary); font-weight: 600;">Option A</label>
+            <input type="text" id="add_opt_a" name="option_a" class="form-control" placeholder="e.g. 0 degrees">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="add_opt_b" style="color: var(--secondary); font-weight: 600;">Option B</label>
+            <input type="text" id="add_opt_b" name="option_b" class="form-control" placeholder="e.g. 90 degrees">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="add_opt_c" style="color: var(--secondary); font-weight: 600;">Option C</label>
+            <input type="text" id="add_opt_c" name="option_c" class="form-control" placeholder="e.g. 180 degrees">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="add_opt_d" style="color: var(--secondary); font-weight: 600;">Option D</label>
+            <input type="text" id="add_opt_d" name="option_d" class="form-control" placeholder="e.g. 360 degrees">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 0.5rem;">
+          <label class="form-label" for="add_correct_option" style="color: #34d399; font-weight: 600;">
+            ✓ Correct Option (Select One Answer)
+          </label>
+          <select id="add_correct_option" name="correct_option" class="form-control" style="border-color: #10b981; max-width: 320px;">
+            <option value="A">Option A is Correct Answer</option>
+            <option value="B">Option B is Correct Answer</option>
+            <option value="C" selected>Option C is Correct Answer</option>
+            <option value="D">Option D is Correct Answer</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Question Image / Circuit Diagram Upload Input -->
+      <div class="form-group" style="background: rgba(255, 255, 255, 0.02); padding: 0.85rem; border: 1px dashed var(--border); border-radius: var(--radius-sm);">
+        <label class="form-label" for="question_image" style="display: flex; align-items: center; gap: 0.4rem;">
+          <span>📸 Attach Question Reference Image / Circuit Diagram (Optional)</span>
+        </label>
+        <input type="file" id="question_image" name="question_image" class="form-control" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+        <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+          Upload circuit diagrams, pinouts, characteristic curves, or schematic figures. Students and Gemini AI will reference this image.
+        </small>
+      </div>
+
+      <div class="form-group" id="add-model-ans-group">
+        <label class="form-label" for="model_ans">Official Model Answer (Used by Gemini AI / MCQ key)</label>
+        <textarea id="model_ans" name="model_answer" class="form-control" rows="2" placeholder="Specify key circuit topology, polarities, derivation steps, or leave blank to auto-use correct option."></textarea>
+      </div>
+
+      <div class="form-group" id="add-acceptable-alt-group">
+        <label class="form-label" for="acceptable_alt">Acceptable Alternative Answers / Derivations</label>
+        <input type="text" id="acceptable_alt" name="acceptable_alternatives" class="form-control" placeholder="e.g. Equivalent notations accepted">
+      </div>
+
+      <div class="grid grid-3">
+        <div class="form-group">
+          <label class="form-label" for="difficulty">Difficulty Level</label>
+          <select id="difficulty" name="difficulty" class="form-control">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+          <input type="checkbox" id="requires_diagram" name="requires_diagram" value="1" {% if assessment.assessment_type != 'mcq_test' %}checked{% endif %}>
+          <label for="requires_diagram" style="font-size: 0.85rem;">Requires Circuit Diagram</label>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+          <input type="checkbox" id="requires_numerical" name="requires_numerical" value="1">
+          <label for="requires_numerical" style="font-size: 0.85rem;">Requires Numerical Work</label>
+        </div>
+      </div>
+
+      <!-- DYNAMIC RUBRIC CRITERIA BUILDER -->
+      <div id="add-rubric-container" style="{% if assessment.assessment_type == 'mcq_test' %}display: none;{% endif %} background: #0f172a; padding: 1rem; border-radius: var(--radius-md); margin-top: 1rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <div>
+            <strong style="color: var(--secondary); font-size: 0.9rem;">Marking Criteria Rubric</strong>
+            <small style="color: var(--text-muted); display: block;">Define criterion breakdown (e.g. Diagram, Formula, Substitution)</small>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addCriterionRow()">+ Add Criterion</button>
+        </div>
+
+        <div id="criteria-rows-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div class="criterion-row" style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" name="criterion_title[]" class="form-control" placeholder="Criterion title (e.g. Circuit Diagram & Labels)" style="flex: 2;">
+            <input type="number" name="criterion_marks[]" class="form-control" placeholder="Marks" style="width: 90px;" step="0.5" value="2.0">
+            <input type="text" name="criterion_desc[]" class="form-control" placeholder="Description/keywords" style="flex: 2;">
+            <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding: 0.4rem 0.6rem;">&times;</button>
+          </div>
+          <div class="criterion-row" style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" name="criterion_title[]" class="form-control" placeholder="Criterion title (e.g. Biasing polarities & KCL)" style="flex: 2;">
+            <input type="number" name="criterion_marks[]" class="form-control" placeholder="Marks" style="width: 90px;" step="0.5" value="3.0">
+            <input type="text" name="criterion_desc[]" class="form-control" placeholder="Description/keywords" style="flex: 2;">
+            <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding: 0.4rem 0.6rem;">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-question-modal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Question & Rubric →</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Edit Question & Rubric -->
+<div id="edit-question-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 780px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div class="card-header">
+      <h3 class="card-title">✏️ Edit Question & Marking Rubric</h3>
+      <button onclick="document.getElementById('edit-question-modal').style.display='none'" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <form id="edit-question-form" method="POST" enctype="multipart/form-data">
+      
+      <!-- Question Type Switcher (Edit) -->
+      <div class="form-group" style="background: rgba(255, 255, 255, 0.03); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <label class="form-label" style="margin-bottom: 0.5rem; font-weight: 600;">Question Type</label>
+        <div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+          <label style="cursor: pointer; display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem;">
+            <input type="radio" id="edit_type_desc" name="question_type" value="descriptive" onchange="toggleQuestionType('edit', this.value)">
+            <span>📝 Descriptive Question</span>
+          </label>
+          <label style="cursor: pointer; display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem;">
+            <input type="radio" id="edit_type_mcq" name="question_type" value="mcq" onchange="toggleQuestionType('edit', this.value)">
+            <span>🔘 MCQ Test (4 Options + 1 Correct Answer)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="edit_q_number">Question Number</label>
+          <input type="text" id="edit_q_number" name="question_number" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="edit_q_marks">Marks for this Question</label>
+          <input type="number" id="edit_q_marks" name="max_marks" class="form-control" min="0.5" max="50" step="0.5" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edit_q_text">Question Statement</label>
+        <textarea id="edit_q_text" name="question_text" class="form-control" rows="3" required></textarea>
+      </div>
+
+      <!-- MCQ 4 Options & Correct Answer Selector Container (Edit) -->
+      <div id="edit-mcq-options-container" style="display: none; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+        <strong style="color: #38bdf8; font-size: 0.9rem; display: block; margin-bottom: 0.75rem;">
+          🔘 4 Multiple Choice Options (A, B, C, D):
+        </strong>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label" for="edit_opt_a" style="color: var(--secondary); font-weight: 600;">Option A</label>
+            <input type="text" id="edit_opt_a" name="option_a" class="form-control" placeholder="Option A text">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit_opt_b" style="color: var(--secondary); font-weight: 600;">Option B</label>
+            <input type="text" id="edit_opt_b" name="option_b" class="form-control" placeholder="Option B text">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit_opt_c" style="color: var(--secondary); font-weight: 600;">Option C</label>
+            <input type="text" id="edit_opt_c" name="option_c" class="form-control" placeholder="Option C text">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit_opt_d" style="color: var(--secondary); font-weight: 600;">Option D</label>
+            <input type="text" id="edit_opt_d" name="option_d" class="form-control" placeholder="Option D text">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 0.5rem;">
+          <label class="form-label" for="edit_correct_option" style="color: #34d399; font-weight: 600;">
+            ✓ Correct Option (Select One Answer)
+          </label>
+          <select id="edit_correct_option" name="correct_option" class="form-control" style="border-color: #10b981; max-width: 320px;">
+            <option value="A">Option A is Correct Answer</option>
+            <option value="B">Option B is Correct Answer</option>
+            <option value="C">Option C is Correct Answer</option>
+            <option value="D">Option D is Correct Answer</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Current Image Preview & Upload to Replace -->
+      <div class="form-group" style="background: rgba(255, 255, 255, 0.02); padding: 0.85rem; border: 1px dashed var(--border); border-radius: var(--radius-sm);">
+        <label class="form-label" for="edit_question_image" style="display: flex; align-items: center; gap: 0.4rem;">
+          <span>📸 Question Reference Image / Circuit Diagram</span>
+        </label>
+        <div id="edit-current-image-preview" style="display: none; margin-bottom: 0.75rem;">
+          <small style="color: #6ee7b7; display: block; margin-bottom: 0.25rem;">Current Attached Image:</small>
+          <img id="edit-preview-img-tag" src="" alt="Current Figure" style="max-height: 140px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #0f172a;">
+        </div>
+        <input type="file" id="edit_question_image" name="question_image" class="form-control" accept="image/jpeg,image/png,image/webp,image/svg+xml">
+        <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+          Leave empty to keep existing figure, or select a new file (.png, .jpg, .webp, .svg) to replace it.
+        </small>
+      </div>
+
+      <div class="form-group" id="edit-model-ans-group">
+        <label class="form-label" for="edit_model_ans">Official Model Answer (Used by Gemini Multimodal AI / Key)</label>
+        <textarea id="edit_model_ans" name="model_answer" class="form-control" rows="3"></textarea>
+      </div>
+
+      <div class="form-group" id="edit-acceptable-alt-group">
+        <label class="form-label" for="edit_acceptable_alt">Acceptable Alternative Answers / Derivations</label>
+        <input type="text" id="edit_acceptable_alt" name="acceptable_alternatives" class="form-control">
+      </div>
+
+      <div class="grid grid-3">
+        <div class="form-group">
+          <label class="form-label" for="edit_difficulty">Difficulty Level</label>
+          <select id="edit_difficulty" name="difficulty" class="form-control">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+          <input type="checkbox" id="edit_requires_diagram" name="requires_diagram" value="1">
+          <label for="edit_requires_diagram" style="font-size: 0.85rem;">Requires Circuit Diagram</label>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem;">
+          <input type="checkbox" id="edit_requires_numerical" name="requires_numerical" value="1">
+          <label for="edit_requires_numerical" style="font-size: 0.85rem;">Requires Numerical Work</label>
+        </div>
+      </div>
+
+      <!-- DYNAMIC RUBRIC CRITERIA BUILDER (EDIT) -->
+      <div id="edit-rubric-container" style="background: #0f172a; padding: 1rem; border-radius: var(--radius-md); margin-top: 1rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <div>
+            <strong style="color: var(--secondary); font-size: 0.9rem;">Marking Criteria Rubric</strong>
+            <small style="color: var(--text-muted); display: block;">Adjust criteria breakdown</small>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addEditCriterionRow()">+ Add Criterion</button>
+        </div>
+
+        <div id="edit-criteria-rows-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <!-- Dynamically populated rows -->
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('edit-question-modal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update Question & Rubric →</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const assessmentQuestions = {{ assessment.questions | tojson }};
+
+  function toggleQuestionType(prefix, type) {
+    const mcqBox = document.getElementById(`${prefix}-mcq-options-container`);
+    const rubricBox = document.getElementById(`${prefix}-rubric-container`);
+    const diagBox = document.getElementById(`${prefix === 'add' ? 'requires_diagram' : 'edit_requires_diagram'}`);
+
+    if (type === 'mcq') {
+      if (mcqBox) mcqBox.style.display = 'block';
+      if (rubricBox) rubricBox.style.display = 'none';
+      if (diagBox) diagBox.checked = false;
+    } else {
+      if (mcqBox) mcqBox.style.display = 'none';
+      if (rubricBox) rubricBox.style.display = 'block';
+      if (diagBox && prefix === 'add') diagBox.checked = true;
+    }
+  }
+
+  function addCriterionRow() {
+    const container = document.getElementById("criteria-rows-container");
+    const div = document.createElement("div");
+    div.className = "criterion-row";
+    div.style.cssText = "display: flex; gap: 0.5rem; align-items: center;";
+    div.innerHTML = `
+      <input type="text" name="criterion_title[]" class="form-control" placeholder="Criterion title" style="flex: 2;" required>
+      <input type="number" name="criterion_marks[]" class="form-control" placeholder="Marks" style="width: 90px;" step="0.5" value="1.0" required>
+      <input type="text" name="criterion_desc[]" class="form-control" placeholder="Description/keywords" style="flex: 2;">
+      <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding: 0.4rem 0.6rem;">&times;</button>
+    `;
+    container.appendChild(div);
+  }
+
+  function openEditModal(qId) {
+    if (!assessmentQuestions || !Array.isArray(assessmentQuestions)) {
+      console.error("assessmentQuestions is not loaded properly.");
+      return;
+    }
+    const q = assessmentQuestions.find(item => String(item.id || item.question_number) === String(qId));
+    if (!q) {
+      console.warn("Question not found for id:", qId);
+      return;
+    }
+
+    const form = document.getElementById("edit-question-form");
+    form.action = `/teacher/assessment/{{ assessment.id }}/edit-question/${q.id || qId}`;
+
+    const isMcq = (q.question_type === 'mcq') || Boolean(q.option_a || q.option_b);
+    if (isMcq) {
+      document.getElementById("edit_type_mcq").checked = true;
+      toggleQuestionType('edit', 'mcq');
+    } else {
+      document.getElementById("edit_type_desc").checked = true;
+      toggleQuestionType('edit', 'descriptive');
+    }
+
+    document.getElementById("edit_q_number").value = q.question_number || "";
+    document.getElementById("edit_q_marks").value = q.max_marks || (isMcq ? 1 : 5);
+    document.getElementById("edit_q_text").value = q.question_text || "";
+    document.getElementById("edit_opt_a").value = q.option_a || "";
+    document.getElementById("edit_opt_b").value = q.option_b || "";
+    document.getElementById("edit_opt_c").value = q.option_c || "";
+    document.getElementById("edit_opt_d").value = q.option_d || "";
+    document.getElementById("edit_correct_option").value = (q.correct_option || "A").toUpperCase();
+    document.getElementById("edit_model_ans").value = q.model_answer || "";
+    document.getElementById("edit_acceptable_alt").value = q.acceptable_alternatives || "";
+    document.getElementById("edit_difficulty").value = q.difficulty || "medium";
+    document.getElementById("edit_requires_diagram").checked = Boolean(q.requires_diagram);
+    document.getElementById("edit_requires_numerical").checked = Boolean(q.requires_numerical);
+
+    const previewContainer = document.getElementById("edit-current-image-preview");
+    const previewImg = document.getElementById("edit-preview-img-tag");
+    if (q.question_image_url) {
+      previewImg.src = q.question_image_url;
+      previewContainer.style.display = "block";
+    } else {
+      previewImg.src = "";
+      previewContainer.style.display = "none";
+    }
+
+    // Populate criteria
+    const criteriaContainer = document.getElementById("edit-criteria-rows-container");
+    criteriaContainer.innerHTML = "";
+    const criteriaList = q.marking_criteria || q.criteria || [];
+    if (criteriaList.length > 0) {
+      criteriaList.forEach(c => {
+        addEditCriterionRow(c.criterion_title || "", c.max_marks || 1.0, c.description || "");
+      });
+    } else {
+      addEditCriterionRow("Main Solution", q.max_marks || (isMcq ? 1.0 : 5.0), isMcq ? "Accurate MCQ choice" : "Complete and correct steps");
+    }
+
+    document.getElementById("edit-question-modal").style.display = "flex";
+  }
+
+  function addEditCriterionRow(title = "", marks = "1.0", desc = "") {
+    const container = document.getElementById("edit-criteria-rows-container");
+    const div = document.createElement("div");
+    div.className = "criterion-row";
+    div.style.cssText = "display: flex; gap: 0.5rem; align-items: center;";
+    div.innerHTML = `
+      <input type="text" name="criterion_title[]" class="form-control" placeholder="Criterion title" style="flex: 2;" value="${escapeHtml(title)}" required>
+      <input type="number" name="criterion_marks[]" class="form-control" placeholder="Marks" style="width: 90px;" step="0.5" value="${marks}" required>
+      <input type="text" name="criterion_desc[]" class="form-control" placeholder="Description/keywords" style="flex: 2;" value="${escapeHtml(desc)}">
+      <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding: 0.4rem 0.6rem;">&times;</button>
+    `;
+    container.appendChild(div);
+  }
+
+  function escapeHtml(text) {
+    if (!text) return "";
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function handleMaterialSelected(selectElem) {
+    const selectedOpt = selectElem.options[selectElem.selectedIndex];
+    if (!selectedOpt || !selectedOpt.value) return;
+
+    const subj = selectedOpt.getAttribute('data-subject');
+    const unit = selectedOpt.getAttribute('data-unit');
+    const title = selectedOpt.getAttribute('data-title');
+
+    const subjInput = document.getElementById('auto_subject');
+    const lessonInput = document.getElementById('auto_lesson');
+
+    if (subj && subjInput && (!subjInput.value || subjInput.value === 'General Academic')) {
+      subjInput.value = subj;
+    }
+    if (unit && lessonInput && !lessonInput.value) {
+      lessonInput.value = unit;
+    } else if (title && lessonInput && !lessonInput.value) {
+      lessonInput.value = title;
+    }
+  }
+
+  function switchAiTab(tab) {
+    const tabAuto = document.getElementById("ai-tab-auto");
+    const tabPrompt = document.getElementById("ai-tab-prompt");
+    const btnAuto = document.getElementById("tab-btn-auto");
+    const btnPrompt = document.getElementById("tab-btn-prompt");
+
+    if (tab === 'auto') {
+      if (tabAuto) tabAuto.style.display = 'block';
+      if (tabPrompt) tabPrompt.style.display = 'none';
+      if (btnAuto) { btnAuto.className = 'btn btn-sm btn-primary'; }
+      if (btnPrompt) { btnPrompt.className = 'btn btn-sm btn-secondary'; }
+    } else {
+      if (tabAuto) tabAuto.style.display = 'none';
+      if (tabPrompt) tabPrompt.style.display = 'block';
+      if (btnAuto) { btnAuto.className = 'btn btn-sm btn-secondary'; }
+      if (btnPrompt) { btnPrompt.className = 'btn btn-sm btn-primary'; }
+      generateAiPrompt();
+    }
+  }
+
+  function generateAiPrompt() {
+    const subject = document.getElementById("prompt_subject") ? document.getElementById("prompt_subject").value.trim() : "Chemistry";
+    const topic = document.getElementById("prompt_topic") ? document.getElementById("prompt_topic").value.trim() : "Periodic Table";
+    const outcome = document.getElementById("prompt_outcome") ? document.getElementById("prompt_outcome").value.trim() : "CO1";
+    const qType = document.getElementById("prompt_q_type") ? document.getElementById("prompt_q_type").value : "mcq";
+    const count = document.getElementById("prompt_count") ? document.getElementById("prompt_count").value : 10;
+    const diff = document.getElementById("prompt_diff") ? document.getElementById("prompt_diff").value : "mixed";
+
+    let prompt = "";
+    if (qType === "mcq") {
+      prompt = `Subject: ${subject}\nTopic / Chapter: ${topic}\nLearning Outcome: ${outcome}\n\nTask: Generate ${count} Multiple Choice Questions (MCQs) for students with difficulty level (${diff}).\n\nRequirements:\n1. Questions must be technically accurate with standard terminology.\n2. Exactly four options per question (Option A, Option B, Option C, Option D).\n3. Exactly one unambiguous correct answer.\n4. Provide the correct answer key (e.g., "Correct: Option B").\n5. Provide a detailed step-by-step technical explanation of why the correct answer is right and why distractors are invalid.\n6. Cover different sub-concepts within the topic to avoid duplicate questions.\n7. Output format should be clean HTML or structured numbered text (easy to import into Online Evaluator).`;
+    } else {
+      prompt = `Subject: ${subject}\nTopic / Chapter: ${topic}\nLearning Outcome: ${outcome}\n\nTask: Generate ${count} Descriptive / Analytical examination questions with model answers and marking rubrics.\n\nIMPORTANT: Output MUST be in this exact HTML format so it can be auto-imported. Wrap in HTML data container:\n\n<html><body><scr` + `ipt>\nconst data = [\n  {\n    n: 1,\n    title: "Question text here",\n    marks: 5,\n    answer: \\\`Model answer with full derivation steps, formulas, and explanations here.\\\`,\n    rubric: [["Key Principle & Definition", 2], ["Analytical Derivation / Mechanism", 2], ["Final Answer / Summary", 1]]\n  },\n  // ... more questions\n];\n<` + `/script></body></html>\n\nRules for each question object:\n- n: Question number (integer starting from 1)\n- title: Clear, technically accurate question statement (string in quotes)\n- marks: Total marks for this question (number, e.g. 5 or 10)\n- answer: Complete model answer in backticks (\\\`) — include formulas, derivation steps, calculations\n- rubric: Array of [criterion_title, marks] pairs that sum to total marks\n\nAdditional requirements:\n1. Generate ${count} questions with difficulty mix: ${diff}\n2. Cover different sub-concepts within ${topic}\n3. Marks per question should be 5 or 10 marks (total should be realistic for the test)`;
+    }
+
+    const textArea = document.getElementById("generated_prompt_text");
+    if (textArea) {
+      textArea.value = prompt;
+    }
+  }
+
+  async function askAiForSubtopics() {
+    const subject = document.getElementById("auto_subject") ? document.getElementById("auto_subject").value.trim() : "";
+    const lesson = document.getElementById("auto_lesson") ? document.getElementById("auto_lesson").value.trim() : "";
+    const topics = document.getElementById("auto_topics") ? document.getElementById("auto_topics").value.trim() : "";
+
+    if (!subject && !lesson) {
+      alert("Please enter a Subject and Lesson Name first to get suggestions!");
+      return;
+    }
+
+    const box = document.getElementById("ai-suggestions-box");
+    box.style.display = "block";
+    document.getElementById("ai-suggest-title").innerText = "🧠 Exploring topics with AI... Please wait...";
+
+    try {
+      const resp = await fetch("{{ url_for('teacher.ai_suggest_topics', assessment_id=assessment.id) }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ subject: subject, lesson_name: lesson, topics: topics })
+      });
+      const data = await resp.json();
+      document.getElementById("ai-suggest-title").innerText = `🧠 Suggested Concepts (${data.source || 'AI Assistant'}):`;
+
+      const subtopicsContainer = document.getElementById("subtopics-chips");
+      subtopicsContainer.innerHTML = "";
+      (data.subtopics || []).forEach(st => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "btn btn-sm btn-secondary";
+        chip.style.cssText = "font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 12px; background: #1e293b; border: 1px solid #475569; color: #e2e8f0; cursor: pointer;";
+        chip.innerText = "+ " + st;
+        chip.onclick = function() {
+          const inp = document.getElementById("auto_topics");
+          inp.value = inp.value ? inp.value + ", " + st : st;
+          chip.style.borderColor = "#38bdf8";
+          chip.style.color = "#38bdf8";
+        };
+        subtopicsContainer.appendChild(chip);
+      });
+
+      const keywordsContainer = document.getElementById("keywords-chips");
+      keywordsContainer.innerHTML = "";
+      (data.keywords || []).forEach(kw => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "btn btn-sm btn-secondary";
+        chip.style.cssText = "font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 12px; background: #1e293b; border: 1px solid #10b981; color: #6ee7b7; cursor: pointer;";
+        chip.innerText = "+ " + kw;
+        chip.onclick = function() {
+          const inp = document.getElementById("auto_keywords");
+          inp.value = inp.value ? inp.value + ", " + kw : kw;
+          chip.style.background = "rgba(16, 185, 129, 0.2)";
+        };
+        keywordsContainer.appendChild(chip);
+      });
+
+      const qContainer = document.getElementById("clarifying-questions-container");
+      const qList = document.getElementById("clarifying-questions-list");
+      qList.innerHTML = "";
+      if (data.clarifying_questions && data.clarifying_questions.length > 0) {
+        qContainer.style.display = "block";
+        data.clarifying_questions.forEach(q => {
+          const li = document.createElement("li");
+          li.innerText = q;
+          qList.appendChild(li);
+        });
+      } else {
+        qContainer.style.display = "none";
+      }
+
+    } catch (e) {
+      document.getElementById("ai-suggest-title").innerText = "⚠️ Error fetching suggestions: " + e.message;
+    }
+  }
+
+  function copyPromptToClipboard() {
+    const textArea = document.getElementById("generated_prompt_text");
+    if (!textArea) return;
+    textArea.select();
+    navigator.clipboard.writeText(textArea.value).then(() => {
+      const alertBox = document.getElementById("copy-success-alert");
+      if (alertBox) {
+        alertBox.style.display = "block";
+        setTimeout(() => { alertBox.style.display = "none"; }, 4000);
+      }
+    }).catch(err => {
+      alert("Failed to copy: " + err);
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Document & Image Question Paper Extraction & Review Handlers
+  // ─────────────────────────────────────────────────────────────────────────────
+  let detectedQuestionsList = [];
+
+  function openUploadDocModal() {
+    document.getElementById("doc-extract-status").style.display = "none";
+    document.getElementById("doc-extract-error").style.display = "none";
+    document.getElementById("doc-upload-form").reset();
+    document.getElementById("doc_file_name_display").innerText = "Click to browse or drag & drop file";
+    document.getElementById("upload-doc-modal").style.display = "flex";
+  }
+
+  function closeUploadDocModal() {
+    document.getElementById("upload-doc-modal").style.display = "none";
+  }
+
+  function closeConfirmDocModal() {
+    document.getElementById("confirm-doc-modal").style.display = "none";
+  }
+
+  function backToUploadModal() {
+    closeConfirmDocModal();
+    document.getElementById("upload-doc-modal").style.display = "flex";
+  }
+
+  function handleDocFileSelection(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      document.getElementById("doc_file_name_display").innerText = `📄 ${file.name} (${sizeMB} MB)`;
+    }
+  }
+
+  async function startDocumentExtraction() {
+    const fileInput = document.getElementById("doc_file_input");
+    if (!fileInput.files || !fileInput.files[0]) {
+      alert("Please select a question paper file (PDF, Word, or Image) first.");
+      return;
+    }
+
+    const file = fileInput.files[0];
+    const defaultMarks = document.getElementById("doc_default_marks").value || 5.0;
+    const subject = document.getElementById("doc_subject_context").value.trim();
+
+    const statusBox = document.getElementById("doc-extract-status");
+    const errorBox = document.getElementById("doc-extract-error");
+    const submitBtn = document.getElementById("btn-start-extract");
+
+    statusBox.style.display = "block";
+    errorBox.style.display = "none";
+    submitBtn.disabled = true;
+    submitBtn.innerText = "⏳ Processing...";
+
+    const formData = new FormData();
+    formData.append("document_file", file);
+    formData.append("default_marks", defaultMarks);
+    formData.append("subject", subject);
+
+    try {
+      const resp = await fetch("/teacher/assessment/{{ assessment.id }}/parse-document-questions", {
+        method: "POST",
+        body: formData
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || !data.success) {
+        throw new Error(data.message || "Failed to parse document questions.");
+      }
+
+      detectedQuestionsList = data.questions || [];
+      if (detectedQuestionsList.length === 0) {
+        throw new Error("No questions could be detected in this file. Please verify the file has recognizable questions.");
+      }
+
+      // Close upload modal, populate confirm modal
+      closeUploadDocModal();
+      document.getElementById("confirm-source-badge").innerText = data.filename || "Uploaded File";
+      renderDetectedQuestions();
+      document.getElementById("confirm-doc-modal").style.display = "flex";
+
+    } catch (err) {
+      errorBox.innerText = "❌ " + (err.message || err);
+      errorBox.style.display = "block";
+    } finally {
+      statusBox.style.display = "none";
+      submitBtn.disabled = false;
+      submitBtn.innerText = "✨ Extract & Review Questions →";
+    }
+  }
+
+  function renderDetectedQuestions() {
+    const container = document.getElementById("detected-questions-container");
+    container.innerHTML = "";
+    document.getElementById("detected-count-display").innerText = detectedQuestionsList.length;
+
+    if (detectedQuestionsList.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+          <p>All questions have been removed.</p>
+          <button type="button" onclick="addBlankQuestionToReview()" class="btn btn-primary btn-sm">+ Add a Question</button>
+        </div>
+      `;
+      return;
+    }
+
+    detectedQuestionsList.forEach((q, idx) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.cssText = "background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-left: 4px solid " + (q.question_type === 'mcq' ? '#38bdf8' : '#10b981') + "; padding: 1.25rem;";
+      card.dataset.index = idx;
+
+      const isMcq = (q.question_type === 'mcq') || Boolean(q.option_a || q.option_b);
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span class="badge ${isMcq ? 'badge-info' : 'badge-success'}" style="font-weight: 700;">
+              Q# <input type="text" value="${escapeHtml(q.question_number || (idx + 1))}" onchange="updateDetectedField(${idx}, 'question_number', this.value)" style="width: 45px; background: transparent; border: none; color: inherit; font-weight: inherit; text-align: center;">
+            </span>
+            <select onchange="changeDetectedQuestionType(${idx}, this.value)" class="form-control" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; width: auto;">
+              <option value="descriptive" ${!isMcq ? 'selected' : ''}>📝 Descriptive</option>
+              <option value="mcq" ${isMcq ? 'selected' : ''}>🔘 MCQ Test</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Marks:</label>
+            <input type="number" step="0.5" min="0.5" max="50" value="${q.max_marks || (isMcq ? 1.0 : 5.0)}" onchange="updateDetectedField(${idx}, 'max_marks', parseFloat(this.value))" class="form-control" style="width: 75px; padding: 0.2rem 0.5rem; font-size: 0.85rem;">
+            <button type="button" onclick="removeDetectedQuestion(${idx})" class="btn btn-danger btn-sm" title="Remove question" style="padding: 0.25rem 0.6rem;">🗑️ Delete</button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 0.75rem;">
+          <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Question Statement:</label>
+          <textarea class="form-control" rows="2" style="font-size: 0.9rem;" onchange="updateDetectedField(${idx}, 'question_text', this.value)">${escapeHtml(q.question_text || '')}</textarea>
+        </div>
+
+        ${isMcq ? `
+          <div style="background: rgba(56, 189, 248, 0.05); border: 1px dashed rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem;">
+            <div class="grid grid-2" style="gap: 0.5rem;">
+              <div>
+                <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 600;">Option A:</label>
+                <input type="text" value="${escapeHtml(q.option_a || '')}" onchange="updateDetectedField(${idx}, 'option_a', this.value)" class="form-control" style="font-size: 0.85rem; padding: 0.3rem 0.6rem;">
+              </div>
+              <div>
+                <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 600;">Option B:</label>
+                <input type="text" value="${escapeHtml(q.option_b || '')}" onchange="updateDetectedField(${idx}, 'option_b', this.value)" class="form-control" style="font-size: 0.85rem; padding: 0.3rem 0.6rem;">
+              </div>
+              <div>
+                <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 600;">Option C:</label>
+                <input type="text" value="${escapeHtml(q.option_c || '')}" onchange="updateDetectedField(${idx}, 'option_c', this.value)" class="form-control" style="font-size: 0.85rem; padding: 0.3rem 0.6rem;">
+              </div>
+              <div>
+                <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 600;">Option D:</label>
+                <input type="text" value="${escapeHtml(q.option_d || '')}" onchange="updateDetectedField(${idx}, 'option_d', this.value)" class="form-control" style="font-size: 0.85rem; padding: 0.3rem 0.6rem;">
+              </div>
+            </div>
+            <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 0.8rem; color: #34d399; font-weight: 600;">Correct Option:</span>
+              <select onchange="updateDetectedField(${idx}, 'correct_option', this.value)" class="form-control" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.8rem; border-color: #10b981;">
+                <option value="A" ${(q.correct_option || 'A').toUpperCase() === 'A' ? 'selected' : ''}>A</option>
+                <option value="B" ${(q.correct_option || 'A').toUpperCase() === 'B' ? 'selected' : ''}>B</option>
+                <option value="C" ${(q.correct_option || 'A').toUpperCase() === 'C' ? 'selected' : ''}>C</option>
+                <option value="D" ${(q.correct_option || 'A').toUpperCase() === 'D' ? 'selected' : ''}>D</option>
+              </select>
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Official Model Answer / Solution Outline:</label>
+          <textarea class="form-control" rows="2" style="font-size: 0.85rem; color: #a7f3d0;" onchange="updateDetectedField(${idx}, 'model_answer', this.value)">${escapeHtml(q.model_answer || '')}</textarea>
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+  }
+
+  function updateDetectedField(index, field, value) {
+    if (detectedQuestionsList[index]) {
+      detectedQuestionsList[index][field] = value;
+    }
+  }
+
+  function changeDetectedQuestionType(index, newType) {
+    if (detectedQuestionsList[index]) {
+      detectedQuestionsList[index].question_type = newType;
+      if (newType === 'mcq') {
+        if (!detectedQuestionsList[index].max_marks || detectedQuestionsList[index].max_marks > 2) {
+          detectedQuestionsList[index].max_marks = 1.0;
+        }
+        if (!detectedQuestionsList[index].correct_option) {
+          detectedQuestionsList[index].correct_option = 'A';
+        }
+      } else {
+        if (!detectedQuestionsList[index].max_marks || detectedQuestionsList[index].max_marks <= 1) {
+          detectedQuestionsList[index].max_marks = 5.0;
+        }
+      }
+      renderDetectedQuestions();
+    }
+  }
+
+  function removeDetectedQuestion(index) {
+    if (confirm("Remove this question from the upload list?")) {
+      detectedQuestionsList.splice(index, 1);
+      renderDetectedQuestions();
+    }
+  }
+
+  function addBlankQuestionToReview() {
+    const nextNum = (detectedQuestionsList.length + 1).toString();
+    detectedQuestionsList.push({
+      question_number: nextNum,
+      question_type: "descriptive",
+      question_text: "Enter question statement here...",
+      max_marks: 5.0,
+      model_answer: "Enter model answer and derivation steps..."
+    });
+    renderDetectedQuestions();
+    const container = document.getElementById("detected-questions-container");
+    container.scrollTop = container.scrollHeight;
+  }
+
+  async function saveConfirmedQuestions() {
+    if (detectedQuestionsList.length === 0) {
+      alert("There are no questions to save.");
+      return;
+    }
+
+    const saveBtn = document.getElementById("btn-save-confirmed-questions");
+    saveBtn.disabled = true;
+    saveBtn.innerText = "⏳ Saving questions to assessment...";
+
+    try {
+      const resp = await fetch("/teacher/assessment/{{ assessment.id }}/confirm-document-questions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          questions: detectedQuestionsList
+        })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.message || "Failed to save questions.");
+      }
+
+      alert(`✅ Success: ${data.message || 'Questions saved!'}`);
+      window.location.reload();
+
+    } catch (err) {
+      alert("❌ Error saving questions: " + (err.message || err));
+      saveBtn.disabled = false;
+      saveBtn.innerText = "✅ Confirm & Save All Questions to Assessment";
+    }
+  }
+
+  // Initialize prompt on load
+  document.addEventListener("DOMContentLoaded", function() {
+    generateAiPrompt();
+    const topicInput = document.getElementById("prompt_topic");
+    const outcomeInput = document.getElementById("prompt_outcome");
+    if (topicInput) topicInput.addEventListener("input", generateAiPrompt);
+    if (outcomeInput) outcomeInput.addEventListener("input", generateAiPrompt);
+  });
+</script>
+{% endblock %}

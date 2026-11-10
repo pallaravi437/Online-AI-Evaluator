@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Student Dashboard - Assessments - BEA Online Evaluator{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9)); border-left: 4px solid var(--secondary);">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <h1 style="font-size: 1.6rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem;">
+        Welcome, {{ session.get('student_name') }}
+      </h1>
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+        Diploma in Electronics & Communication Engineering • PIN: <strong style="color: #38bdf8;">{{ session.get('student_pin') }}</strong>
+      </p>
+    </div>
+    <div>
+      <span class="badge badge-success" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+        Active Student Session
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="card-header" style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+  <div>
+    <h2 class="card-title">📝 Available Assessments & Tests</h2>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
+      Select an assessment below. <strong>MCQ Tests</strong> feature automatic instant results. <strong>Slip Tests</strong> require handwritten paper submissions.
+    </p>
+  </div>
+
+  <!-- Interactive Search & Filter Controls -->
+  <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+    <input type="text" id="student-test-search" class="form-control" placeholder="Search tests by title or code..." style="padding: 0.35rem 0.65rem; font-size: 0.8rem; width: 220px;" oninput="filterStudentTests()">
+    <button type="button" class="btn btn-sm student-filter-pill" style="background: var(--primary); color: white; padding: 0.3rem 0.65rem; font-size: 0.75rem;" onclick="setStudentFilter('all', this)">All</button>
+    <button type="button" class="btn btn-sm student-filter-pill btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.75rem;" onclick="setStudentFilter('mcq_test', this)">⚡ MCQs</button>
+    <button type="button" class="btn btn-sm student-filter-pill btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.75rem;" onclick="setStudentFilter('slip_test', this)">📄 Slip Tests</button>
+  </div>
+</div>
+
+<div class="grid grid-2" id="student-tests-grid">
+  {% for asm in assessments %}
+    <div class="card student-test-card" data-type="{{ asm.assessment_type or 'slip_test' }}" data-search="{{ (asm.title or '')|lower }} {{ (asm.subject_code or '')|lower }} {{ (asm.unit_topic or '')|lower }}" style="border-top: 4px solid {% if asm.assessment_type == 'mcq_test' %}#38bdf8{% else %}#10b981{% endif %}; display: flex; flex-direction: column; justify-content: space-between; background: #0b1120;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; gap: 0.4rem; align-items: center;">
+            {% if asm.assessment_type == 'mcq_test' %}
+              <span class="badge badge-info" style="font-weight: 700; background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; color: #38bdf8;">
+                ⚡ MCQ TEST
+              </span>
+            {% else %}
+              <span class="badge badge-success" style="font-weight: 700; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399;">
+                📄 SLIP TEST
+              </span>
+            {% endif %}
+            <span class="badge badge-secondary" style="font-size: 0.75rem;">{{ asm.subject_code or 'MEE-105' }}</span>
+            {% if asm.unit_topic %}
+              <span class="badge badge-warning" style="font-size: 0.75rem;">{{ asm.unit_topic }}</span>
+            {% endif %}
+          </div>
+          <div>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">{{ asm.assessment_date }}</span>
+          </div>
+        </div>
+
+        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: #f8fafc;">
+          {{ asm.title }}
+        </h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5;">
+          {% if asm.assessment_type == 'mcq_test' %}
+            {{ asm.instructions or '⚡ Objective MCQ Test: Answer questions one by one. Select the best option. Your score, percentage, and complete explanations will appear immediately upon submission.' }}
+          {% else %}
+            {{ asm.instructions or 'Complete all handwritten questions on paper. Draw clear circuit diagrams. Upload clear photos of your script for evaluation.' }}
+          {% endif %}
+        </p>
+
+        <!-- Metric Details -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; font-size: 0.82rem; margin-bottom: 1.25rem; background: #0f172a; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.72rem; text-transform: uppercase;">Max Marks</span>
+            <strong style="color: #38bdf8; font-size: 1.05rem;">{{ asm.max_marks }}</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.72rem; text-transform: uppercase;">Available Date</span>
+            <strong style="color: #e2e8f0;">{{ asm.assessment_date or '—' }}</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.72rem; text-transform: uppercase;">Deadline</span>
+            <strong style="color: #fca5a5;">{{ asm.deadline or 'No Deadline' }}</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block; font-size: 0.72rem; text-transform: uppercase;">Pass Criteria</span>
+            <strong style="color: #34d399;">{{ asm.pass_percentage }}%</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div style="border-top: 1px solid var(--border); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          {% if asm.user_submission_status in ['submitted', 'evaluated', 'approved'] %}
+            <span class="badge badge-success">✓ Submitted</span>
+          {% elif asm.user_submission_status == 'reopened' %}
+            <span class="badge badge-warning">🔄 Reopened by Lecturer</span>
+          {% elif asm.user_submission_status == 'draft' %}
+            <span class="badge badge-warning">⏳ Draft in Progress</span>
+          {% else %}
+            <span class="badge badge-info">Available</span>
+          {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          {% if asm.user_submission_status in ['submitted', 'evaluated', 'approved'] %}
+            {% if asm.assessment_type == 'mcq_test' %}
+              <a href="{{ url_for('student.mcq_results', assessment_id=asm.id) }}" class="btn btn-primary btn-sm" style="font-weight: 700; background: #0284c7; border: none;">
+                📊 View Result & Answers
+              </a>
+            {% else %}
+              <a href="{{ url_for('student.submission_receipt', submission_id=asm.user_submission_id) }}" class="btn btn-secondary btn-sm">
+                📄 Receipt
+              </a>
+              {% if asm.results_published or asm.user_submission_status == 'approved' %}
+                <a href="{{ url_for('student.results', assessment_id=asm.id) }}" class="btn btn-primary btn-sm" style="font-weight: 600;">
+                  📊 View Result
+                </a>
+              {% endif %}
+            {% endif %}
+          {% else %}
+            {% if asm.assessment_type == 'mcq_test' %}
+              <a href="{{ url_for('student.take_mcq_test', assessment_id=asm.id) }}" class="btn btn-primary btn-sm" style="font-weight: 700; background: linear-gradient(135deg, #0284c7, #0369a1); border: none; padding: 0.5rem 1.25rem;">
+                ▶ START TEST
+              </a>
+            {% else %}
+              <a href="{{ url_for('student.upload_answers', assessment_id=asm.id) }}" class="btn btn-success btn-sm" style="font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); border: none; padding: 0.5rem 1.25rem;">
+                ▶ OPEN SLIP TEST (Upload)
+              </a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="card" style="grid-column: span 2; text-align: center; padding: 3rem;">
+      <p style="color: var(--text-muted);">No assessments currently active for your branch.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let activeStudentTypeFilter = 'all';
+
+  function setStudentFilter(type, btn) {
+    activeStudentTypeFilter = type;
+    document.querySelectorAll('.student-filter-pill').forEach(b => {
+      b.style.background = '';
+      b.className = 'btn btn-sm student-filter-pill btn-secondary';
+    });
+    btn.className = 'btn btn-sm student-filter-pill';
+    btn.style.background = 'var(--primary)';
+    btn.style.color = 'white';
+    filterStudentTests();
+  }
+
+  function filterStudentTests() {
+    const q = (document.getElementById('student-test-search').value || '').toLowerCase().trim();
+    const cards = document.querySelectorAll('.student-test-card');
+    cards.forEach(c => {
+      const cardType = c.getAttribute('data-type') || '';
+      const cardSearch = c.getAttribute('data-search') || '';
+      const matchesType = (activeStudentTypeFilter === 'all') || (cardType === activeStudentTypeFilter);
+      const matchesSearch = !q || cardSearch.includes(q);
+      c.style.display = (matchesType && matchesSearch) ? 'flex' : 'none';
+    });
+  }
+</script>
+{% endblock %}
+

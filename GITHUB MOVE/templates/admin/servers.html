@@ -1,0 +1,758 @@
+{% extends "base.html" %}
+
+{% block title %}Universal Academic Data Storage & Multi-Server Architecture - BEA{% endblock %}
+
+{% block content %}
+<div class="card-header" style="margin-bottom: 1.5rem;">
+  <div>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <h1 class="card-title">🌐 Universal Multi-Server Storage Architecture</h1>
+      <span class="badge badge-info">v2.0 Universal Data Manager</span>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.35rem;">
+      Manage distributed storage servers (Firebase, MySQL, Supabase, Local) and assign intelligent routing rules across academic data categories.
+    </p>
+  </div>
+  <div style="display: flex; gap: 0.5rem;">
+    <a href="{{ url_for('admin.settings') }}" class="btn btn-secondary btn-sm">⚙️ System Settings</a>
+    <button type="button" class="btn btn-primary btn-sm" onclick="openAddServerModal()">+ Add Storage Server</button>
+  </div>
+</div>
+
+<!-- TOP STATUS STATS -->
+<div class="grid grid-4" style="margin-bottom: 2rem;">
+  <div class="card" style="padding: 1.25rem; border-left: 4px solid var(--primary);">
+    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Registered Servers</span>
+    <h2 style="font-size: 1.8rem; margin: 0.25rem 0;" id="stat-server-count">{{ servers|length }}</h2>
+    <span style="font-size: 0.75rem; color: var(--text-muted);">Supabase, MySQL, Firebase & Local</span>
+  </div>
+  <div class="card" style="padding: 1.25rem; border-left: 4px solid #38bdf8;">
+    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Routing Rules</span>
+    <h2 style="font-size: 1.8rem; margin: 0.25rem 0;" id="stat-rule-count">{{ (routes.overrides|length if routes else 0) + (routes.category_defaults|length if routes else 0) }}</h2>
+    <span style="font-size: 0.75rem; color: var(--text-muted);">Defaults & Priority Overrides</span>
+  </div>
+  <div class="card" style="padding: 1.25rem; border-left: 4px solid #10b981;">
+    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Data Categories</span>
+    <h2 style="font-size: 1.8rem; margin: 0.25rem 0;">5 Active</h2>
+    <span style="font-size: 0.75rem; color: var(--text-muted);">Students, Syllabi, Materials, Questions, Evals</span>
+  </div>
+  <div class="card" style="padding: 1.25rem; border-left: 4px solid #a855f7;">
+    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Universal Search</span>
+    <h2 style="font-size: 1.8rem; margin: 0.25rem 0;">Ready 🔍</h2>
+    <span style="font-size: 0.75rem; color: var(--text-muted);">Multi-attribute indexing active</span>
+  </div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 2rem;">
+
+  <!-- SECTION 1: REGISTERED SERVERS -->
+  <div class="card" style="border-top: 4px solid var(--primary);">
+    <div class="card-header">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.3rem;">🗄️</span>
+        <h3 class="card-title">1. Multi-Server Database & File Storage Registry</h3>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="openAddServerModal()">+ Register Server</button>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+      Each storage provider executes authenticated operations. Credentials remain strictly server-side and are never transmitted to clients.
+    </p>
+
+    <div class="grid grid-2" id="servers-grid">
+      {% for s in servers %}
+      <div class="card" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); padding: 1.25rem;" id="server-card-{{ s.server_id }}">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <strong style="font-size: 1.05rem;">{{ s.name or s.server_id }}</strong>
+              {% if s.is_default %}
+                <span class="badge badge-success" style="font-size: 0.7rem;">Category Default</span>
+              {% endif %}
+            </div>
+            <code style="color: var(--primary); font-size: 0.75rem;">{{ s.server_id }}</code>
+          </div>
+          <div>
+            {% if s.provider == 'supabase' %}
+              <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Supabase PG</span>
+            {% elif s.provider == 'mysql' %}
+              <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">MySQL Relational</span>
+            {% elif s.provider == 'firebase' %}
+              <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">Firebase Admin</span>
+            {% else %}
+              <span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">Local JSON</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Connection Details Masked -->
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.6;">
+          {% if s.provider == 'supabase' %}
+            <div><strong>URL:</strong> <code>{{ s.config.supabase_url or 'From .env' }}</code></div>
+            <div><strong>Storage Bucket:</strong> <code>{{ s.config.storage_bucket or 'bea-answer-scripts' }}</code></div>
+          {% elif s.provider == 'mysql' %}
+            <div><strong>Host:</strong> <code>{{ s.config.host or 'localhost' }}:{{ s.config.port or 3306 }}</code></div>
+            <div><strong>Database:</strong> <code>{{ s.config.database or 'bea_college_academic' }}</code></div>
+          {% elif s.provider == 'firebase' %}
+            <div><strong>Project ID:</strong> <code>{{ s.config.project_id or 'From .env' }}</code></div>
+            <div><strong>Storage:</strong> <code>{{ s.config.storage_bucket or 'default-bucket' }}</code></div>
+          {% else %}
+            <div><strong>Storage Engine:</strong> <code>Local JSON files + Local Static Uploads</code></div>
+          {% endif %}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 0.75rem;">
+          <div id="test-status-{{ s.server_id }}" style="font-size: 0.75rem; color: var(--text-muted);">
+            Status: <span class="badge badge-info">Ready to test</span>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="testServerConnection('{{ s.server_id }}')">
+              ⚡ Test Connection
+            </button>
+            {% if not s.server_id.startswith('local_') %}
+            <button type="button" class="btn btn-secondary btn-sm" style="color: var(--danger);" onclick="deleteServer('{{ s.server_id }}')">
+              🗑️
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- SECTION 2: STORAGE ROUTING MATRIX -->
+  <div class="card" style="border-top: 4px solid #38bdf8;">
+    <div class="card-header">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.3rem;">🔀</span>
+        <h3 class="card-title">2. Storage Routing Matrix & Dynamic Data Assignment</h3>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" onclick="openAddOverrideModal()">+ Add Priority Override Rule</button>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+      Assign data categories to specific storage servers. Specific priority rules (Test ID, Department, Semester, Subject) automatically take precedence over global category defaults.
+    </p>
+
+    <div class="grid grid-2">
+      <!-- Left: Category Defaults -->
+      <div class="card" style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border);">
+        <h4 style="margin-bottom: 1rem; font-size: 0.95rem; color: #38bdf8;">Default Category Assignments</h4>
+        <table class="table" style="font-size: 0.85rem; width: 100%;">
+          <thead>
+            <tr>
+              <th>Data Category</th>
+              <th>Assigned Default Server</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set cat_labels = {
+              'materials': 'Academic Materials (PDFs/PPTs)',
+              'syllabi': 'Syllabus & Curriculum (CO/LO)',
+              'students': 'Student Master Records',
+              'questions': 'Question Bank & Items',
+              'evaluations': 'AI Evaluations & Rubrics'
+            } %}
+            {% for cat, label in cat_labels.items() %}
+            <tr>
+              <td>
+                <strong>{{ label }}</strong><br>
+                <code style="font-size: 0.7rem; color: var(--text-muted);">{{ cat }}</code>
+              </td>
+              <td>
+                <select id="def-server-{{ cat }}" class="form-control" style="font-size: 0.8rem; padding: 0.35rem 0.5rem;">
+                  {% for s in servers %}
+                    <option value="{{ s.server_id }}" {% if routes.category_defaults and routes.category_defaults.get(cat) == s.server_id %}selected{% endif %}>
+                      {{ s.name or s.server_id }} ({{ s.provider }})
+                    </option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="saveCategoryDefault('{{ cat }}')">Save</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Right: Overrides List -->
+      <div class="card" style="background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border);">
+        <h4 style="margin-bottom: 1rem; font-size: 0.95rem; color: #38bdf8;">Priority Override Rules</h4>
+        {% if routes and routes.overrides %}
+          <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 380px; overflow-y: auto;">
+            {% for rule in routes.overrides %}
+            <div style="background: #0f172a; padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 0.85rem;">
+                  <strong>{{ rule.category|title if rule.category else 'All Categories' }}</strong>
+                  {% if rule.test_id %}<span class="badge badge-info" style="font-size: 0.7rem;">Test: {{ rule.test_id }}</span>{% endif %}
+                  {% if rule.department %}<span class="badge" style="font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); color: #34d399;">Dept: {{ rule.department }}</span>{% endif %}
+                  {% if rule.subject_code %}<span class="badge" style="font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); color: #fbbf24;">Subj: {{ rule.subject_code }}</span>{% endif %}
+                  {% if rule.semester %}<span class="badge" style="font-size: 0.7rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8;">Sem: {{ rule.semester }}</span>{% endif %}
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                  Target Server: <code style="color: #38bdf8;">{{ rule.server_id }}</code>
+                </div>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" style="color: var(--danger); padding: 0.25rem 0.5rem;" onclick="deleteOverride('{{ rule.id }}')">
+                🗑️
+              </button>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p style="color: var(--text-muted); font-size: 0.85rem; padding: 1.5rem; text-align: center;">
+            No custom overrides configured yet. Standard category defaults apply.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: UNIVERSAL SEARCH & RETRIEVAL -->
+  <div class="card" style="border-top: 4px solid #10b981;">
+    <div class="card-header">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.3rem;">🔍</span>
+        <h3 class="card-title">3. Universal Academic Data Search</h3>
+      </div>
+      <span class="badge badge-success">Multi-Server Retrieval Engine</span>
+    </div>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+      Search across all storage servers simultaneously: Student PIN, Subject, Course Code, Unit Topic, Material Title, Learning Outcomes, or Test ID.
+    </p>
+
+    <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
+      <input type="text" id="universal-search-input" class="form-control" placeholder="Search by student PIN, subject code, material title, learning outcome..." onkeydown="if(event.key==='Enter') executeUniversalSearch()">
+      <button type="button" class="btn btn-primary" onclick="executeUniversalSearch()">Search Everywhere 🔍</button>
+    </div>
+
+    <!-- Search Filters -->
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+      <label><input type="checkbox" id="cat-materials" checked> Academic Materials</label>
+      <label><input type="checkbox" id="cat-syllabi" checked> Syllabi & COs</label>
+      <label><input type="checkbox" id="cat-students" checked> Students</label>
+      <label><input type="checkbox" id="cat-questions" checked> Question Bank</label>
+      <label><input type="checkbox" id="cat-evaluations" checked> AI Evaluations</label>
+    </div>
+
+    <!-- Results Box -->
+    <div id="search-results-box" style="display: none; background: #0f172a; padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border); max-height: 400px; overflow-y: auto;">
+      <h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: #34d399;" id="search-results-summary">Results</h4>
+      <div id="search-results-content" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: STUDENT DATA IMPORT & SQL MIGRATION -->
+  <div class="grid grid-2">
+    <!-- Student Batch Import -->
+    <div class="card" style="border-top: 4px solid #a855f7;">
+      <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.3rem;">👥</span>
+          <h3 class="card-title">4. Import Student Records</h3>
+        </div>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Import student roster from CSV or Excel. Duplicate PINs are automatically updated without record duplication.
+      </p>
+
+      <form action="{{ url_for('admin.import_students_csv') }}" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.25rem;">
+        <label class="form-label" style="font-size: 0.8rem;">Import from CSV (.csv)</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="file" name="csv_file" accept=".csv" class="form-control" required style="font-size: 0.8rem;">
+          <button type="submit" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Upload CSV</button>
+        </div>
+        <small style="color: var(--text-muted); font-size: 0.7rem;">Columns: <code>student_pin, student_name, department, semester, academic_year, email</code></small>
+      </form>
+
+      <form action="{{ url_for('admin.import_students_excel') }}" method="POST" enctype="multipart/form-data">
+        <label class="form-label" style="font-size: 0.8rem;">Import from Excel (.xlsx)</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="file" name="excel_file" accept=".xlsx,.xls" class="form-control" required style="font-size: 0.8rem;">
+          <button type="submit" class="btn btn-secondary btn-sm" style="white-space: nowrap;">Upload Excel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- SQL Schema Migration 005 -->
+    <div class="card" style="border-top: 4px solid #f59e0b;">
+      <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.3rem;">📜</span>
+          <h3 class="card-title">5. Database Schema Migration 005</h3>
+        </div>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Deploys the Universal Academic Data Storage schema (Syllabus, Materials, Student Master, Routing Registry, Audit Logs) to the active Supabase PostgreSQL server.
+      </p>
+      <div style="background: #0f172a; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.75rem; margin-bottom: 1rem; line-height: 1.6;">
+        <div>• <code>syllabus_curriculum</code> (Course Outcomes, LOs, CO-PO mapping)</div>
+        <div>• <code>academic_materials</code> (Versioned textbooks, notes, lab manuals)</div>
+        <div>• <code>students_master</code> (Normalized enrollments & examination history)</div>
+        <div>• <code>storage_servers_registry</code> & <code>server_storage_assignments</code></div>
+      </div>
+      <button type="button" class="btn btn-primary" style="width: 100%;" onclick="runMigration005()">
+        🚀 Execute 005_universal_academic_storage.sql
+      </button>
+      <div id="migration-result" style="display: none; margin-top: 0.75rem; font-size: 0.8rem;" class="alert"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL: ADD / REGISTER SERVER -->
+<div id="modal-add-server" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div class="card-header">
+      <h3 class="card-title">Register New Storage Server</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeAddServerModal()">&times;</button>
+    </div>
+    <form id="form-add-server" onsubmit="event.preventDefault(); submitAddServer();">
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Server ID</label>
+          <input type="text" id="srv-id" class="form-control" placeholder="e.g. supabase_project_b" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Display Name</label>
+          <input type="text" id="srv-name" class="form-control" placeholder="e.g. Supabase Secondary" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Storage Provider Type</label>
+        <select id="srv-provider" class="form-control" onchange="onServerProviderChange(this.value)">
+          <option value="supabase">Supabase PostgreSQL & Storage</option>
+          <option value="mysql">MySQL College Academic Database</option>
+          <option value="firebase">Firebase Admin & Storage</option>
+        </select>
+      </div>
+
+      <!-- Supabase Fields -->
+      <div id="fields-supabase">
+        <div class="form-group">
+          <label class="form-label">Supabase URL</label>
+          <input type="text" id="srv-sb-url" class="form-control" placeholder="https://xxx.supabase.co">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Anon Key</label>
+          <input type="password" id="srv-sb-key" class="form-control" placeholder="eyJ...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Service Role Key</label>
+          <input type="password" id="srv-sb-service" class="form-control" placeholder="eyJ...">
+        </div>
+      </div>
+
+      <!-- MySQL Fields -->
+      <div id="fields-mysql" style="display: none;">
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label">MySQL Host</label>
+            <input type="text" id="srv-my-host" class="form-control" placeholder="localhost">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Port</label>
+            <input type="number" id="srv-my-port" class="form-control" value="3306">
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label class="form-label">User</label>
+            <input type="text" id="srv-my-user" class="form-control" placeholder="root">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" id="srv-my-pass" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Database Name</label>
+          <input type="text" id="srv-my-db" class="form-control" placeholder="bea_college_academic">
+        </div>
+      </div>
+
+      <!-- Firebase Fields -->
+      <div id="fields-firebase" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Firebase Project ID</label>
+          <input type="text" id="srv-fb-proj" class="form-control" placeholder="my-firebase-app">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Storage Bucket</label>
+          <input type="text" id="srv-fb-bucket" class="form-control" placeholder="my-app.appspot.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Service Account JSON File Path</label>
+          <input type="text" id="srv-fb-creds" class="form-control" placeholder="config/firebase-service-account.json">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeAddServerModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Server</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: ADD ROUTING OVERRIDE -->
+<div id="modal-add-override" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 550px; width: 100%;">
+    <div class="card-header">
+      <h3 class="card-title">Add Storage Routing Override Rule</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeAddOverrideModal()">&times;</button>
+    </div>
+    <form id="form-add-override" onsubmit="event.preventDefault(); submitAddOverride();">
+      <div class="form-group">
+        <label class="form-label">Target Storage Server</label>
+        <select id="ovr-server" class="form-control" required>
+          {% for s in servers %}
+            <option value="{{ s.server_id }}">{{ s.name or s.server_id }} ({{ s.provider }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Target Data Category (Optional)</label>
+        <select id="ovr-category" class="form-control">
+          <option value="">Any Category</option>
+          <option value="materials">Academic Materials</option>
+          <option value="syllabi">Syllabus & Curriculum</option>
+          <option value="students">Student Master</option>
+          <option value="questions">Question Bank</option>
+          <option value="evaluations">AI Evaluations</option>
+        </select>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Test ID (Highest Priority)</label>
+          <input type="text" id="ovr-testid" class="form-control" placeholder="e.g. test-bjt-01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Subject Code</label>
+          <input type="text" id="ovr-subj" class="form-control" placeholder="e.g. ECE-204">
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input type="text" id="ovr-dept" class="form-control" placeholder="e.g. ECE">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Semester</label>
+          <input type="text" id="ovr-sem" class="form-control" placeholder="e.g. 4">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeAddOverrideModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Rule</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openAddServerModal() {
+    document.getElementById('modal-add-server').style.display = 'flex';
+  }
+  function closeAddServerModal() {
+    document.getElementById('modal-add-server').style.display = 'none';
+  }
+
+  function openAddOverrideModal() {
+    document.getElementById('modal-add-override').style.display = 'flex';
+  }
+  function closeAddOverrideModal() {
+    document.getElementById('modal-add-override').style.display = 'none';
+  }
+
+  function onServerProviderChange(val) {
+    document.getElementById('fields-supabase').style.display = (val === 'supabase') ? 'block' : 'none';
+    document.getElementById('fields-mysql').style.display = (val === 'mysql') ? 'block' : 'none';
+    document.getElementById('fields-firebase').style.display = (val === 'firebase') ? 'block' : 'none';
+  }
+
+  async function testServerConnection(serverId) {
+    const statusEl = document.getElementById(`test-status-${serverId}`);
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="badge badge-info">Testing connection...</span>`;
+    }
+
+    try {
+      const resp = await fetch(`/admin/api/servers/${encodeURIComponent(serverId)}/test`, { method: "POST" });
+      const data = await resp.json();
+      if (data.success && data.result) {
+        const res = data.result;
+        if (res.connected) {
+          statusEl.innerHTML = `<span class="badge badge-success">✓ Connected (${res.message || 'OK'})</span>`;
+        } else {
+          statusEl.innerHTML = `<span class="badge badge-warning" title="${res.message}">⚠ ${res.message || 'Not Connected'}</span>`;
+        }
+      } else {
+        statusEl.innerHTML = `<span class="badge badge-danger">Error: ${data.message || 'Failed'}</span>`;
+      }
+    } catch (e) {
+      statusEl.innerHTML = `<span class="badge badge-danger">Network error: ${e.message}</span>`;
+    }
+  }
+
+  async function submitAddServer() {
+    const serverId = document.getElementById('srv-id').value.trim();
+    const serverName = document.getElementById('srv-name').value.trim();
+    const provider = document.getElementById('srv-provider').value;
+
+    let config = {};
+    if (provider === 'supabase') {
+      config.supabase_url = document.getElementById('srv-sb-url').value.trim();
+      config.supabase_key = document.getElementById('srv-sb-key').value.trim();
+      config.supabase_service_role = document.getElementById('srv-sb-service').value.trim();
+    } else if (provider === 'mysql') {
+      config.host = document.getElementById('srv-my-host').value.trim() || 'localhost';
+      config.port = parseInt(document.getElementById('srv-my-port').value || 3306);
+      config.user = document.getElementById('srv-my-user').value.trim() || 'root';
+      config.password = document.getElementById('srv-my-pass').value;
+      config.database = document.getElementById('srv-my-db').value.trim() || 'bea_college_academic';
+    } else if (provider === 'firebase') {
+      config.project_id = document.getElementById('srv-fb-proj').value.trim();
+      config.storage_bucket = document.getElementById('srv-fb-bucket').value.trim();
+      config.credentials_path = document.getElementById('srv-fb-creds').value.trim();
+    }
+
+    try {
+      const resp = await fetch("/admin/api/servers/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          server_id: serverId,
+          server_name: serverName,
+          provider: provider,
+          ...config
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        alert("Server registered successfully!");
+        location.reload();
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (e) {
+      alert("Network error: " + e.message);
+    }
+  }
+
+  async function deleteServer(serverId) {
+    if (!confirm(`Are you sure you want to remove storage server '${serverId}'?`)) return;
+    try {
+      const resp = await fetch(`/admin/api/servers/${encodeURIComponent(serverId)}/delete`, { method: "POST" });
+      const data = await resp.json();
+      if (data.success) {
+        location.reload();
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  }
+
+  async function saveCategoryDefault(category) {
+    const select = document.getElementById(`def-server-${category}`);
+    const serverId = select.value;
+    try {
+      const resp = await fetch("/admin/api/routing/set-default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: category, server_id: serverId })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        alert(`Default server for '${category}' updated to '${serverId}'.`);
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  }
+
+  async function submitAddOverride() {
+    const payload = {
+      server_id: document.getElementById('ovr-server').value,
+      category: document.getElementById('ovr-category').value || null,
+      test_id: document.getElementById('ovr-testid').value.trim() || null,
+      subject_code: document.getElementById('ovr-subj').value.trim() || null,
+      department: document.getElementById('ovr-dept').value.trim() || null,
+      semester: document.getElementById('ovr-sem').value.trim() || null,
+    };
+
+    try {
+      const resp = await fetch("/admin/api/routing/add-override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      if (data.success) {
+        alert("Priority routing rule added!");
+        location.reload();
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  }
+
+  async function deleteOverride(ruleId) {
+    if (!confirm("Delete this priority routing rule?")) return;
+    try {
+      const resp = await fetch("/admin/api/routing/delete-override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rule_id: ruleId })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        location.reload();
+      } else {
+        alert("Error: " + data.message);
+      }
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  }
+
+  async function executeUniversalSearch() {
+    const q = document.getElementById('universal-search-input').value.trim();
+    if (!q) {
+      alert("Please enter a search query.");
+      return;
+    }
+
+    const categories = [];
+    if (document.getElementById('cat-materials').checked) categories.push('materials');
+    if (document.getElementById('cat-syllabi').checked) categories.push('syllabi');
+    if (document.getElementById('cat-students').checked) categories.push('students');
+    if (document.getElementById('cat-questions').checked) categories.push('questions');
+    if (document.getElementById('cat-evaluations').checked) categories.push('evaluations');
+
+    const params = new URLSearchParams({ q: q });
+    categories.forEach(c => params.append("categories", c));
+
+    const box = document.getElementById('search-results-box');
+    const content = document.getElementById('search-results-content');
+    const summary = document.getElementById('search-results-summary');
+
+    box.style.display = 'block';
+    summary.innerText = `Searching across ${categories.length} categories...`;
+    content.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">Querying storage repositories...</div>';
+
+    try {
+      const resp = await fetch(`/admin/search?${params.toString()}`, {
+        headers: { "Accept": "application/json" }
+      });
+      const data = await resp.json();
+      if (!data.success) {
+        summary.innerText = "Search Error";
+        content.innerHTML = `<div style="color: var(--danger); font-size: 0.85rem;">${data.message || 'Error executing search'}</div>`;
+        return;
+      }
+
+      summary.innerText = `Found ${data.total} matches for "${data.query}" across distributed servers`;
+      let html = '';
+
+      // Materials
+      const mats = data.results.materials || [];
+      if (mats.length > 0) {
+        html += `<div style="margin-bottom: 0.5rem;"><strong style="color: #38bdf8; font-size: 0.85rem;">📚 Academic Materials (${mats.length})</strong></div>`;
+        mats.forEach(m => {
+          html += `
+            <div style="background: #020617; padding: 0.65rem 0.85rem; border-radius: 6px; border-left: 3px solid #38bdf8; font-size: 0.8rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <strong>${m.title || 'Untitled'}</strong>
+                <span class="badge badge-info" style="font-size: 0.65rem;">Server: ${m.storage_server_id || 'default'}</span>
+              </div>
+              <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem;">
+                Subject: ${m.subject_code || 'General'} | Unit: ${m.unit_topic || 'N/A'} | Type: ${m.material_type || 'notes'}
+              </div>
+            </div>`;
+        });
+      }
+
+      // Syllabi
+      const syllabi = data.results.syllabi || [];
+      if (syllabi.length > 0) {
+        html += `<div style="margin: 0.75rem 0 0.5rem;"><strong style="color: #34d399; font-size: 0.85rem;">📋 Syllabi & Curriculum (${syllabi.length})</strong></div>`;
+        syllabi.forEach(s => {
+          html += `
+            <div style="background: #020617; padding: 0.65rem 0.85rem; border-radius: 6px; border-left: 3px solid #34d399; font-size: 0.8rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <strong>${s.course_code || ''} - ${s.course_title || 'Syllabus'}</strong>
+                <span class="badge badge-success" style="font-size: 0.65rem;">v${s.version || 1} • ${s.storage_server_id || 'default'}</span>
+              </div>
+              <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem;">
+                Dept: ${s.department || 'N/A'} | Sem: ${s.semester || 'N/A'} | AY: ${s.academic_year || 'N/A'}
+              </div>
+            </div>`;
+        });
+      }
+
+      // Students
+      const students = data.results.students || [];
+      if (students.length > 0) {
+        html += `<div style="margin: 0.75rem 0 0.5rem;"><strong style="color: #a855f7; font-size: 0.85rem;">👤 Students (${students.length})</strong></div>`;
+        students.forEach(st => {
+          html += `
+            <div style="background: #020617; padding: 0.65rem 0.85rem; border-radius: 6px; border-left: 3px solid #a855f7; font-size: 0.8rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <strong>${st.student_name}</strong>
+                <code style="color: #a855f7;">${st.student_pin}</code>
+              </div>
+              <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem;">
+                Dept: ${st.department || 'N/A'} | Sem: ${st.semester || 'N/A'} | Server: ${st.storage_server_id || 'mysql_primary'}
+              </div>
+            </div>`;
+        });
+      }
+
+      if (data.total === 0) {
+        html = '<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem;">No matching records found. Try broader terms or enable more categories.</div>';
+      }
+
+      content.innerHTML = html;
+    } catch (e) {
+      summary.innerText = "Search Error";
+      content.innerHTML = `<div style="color: var(--danger); font-size: 0.85rem;">Network error: ${e.message}</div>`;
+    }
+  }
+
+  async function runMigration005() {
+    if (!confirm("Execute 005_universal_academic_storage.sql on active database?")) return;
+    const resBox = document.getElementById('migration-result');
+    resBox.style.display = 'block';
+    resBox.className = 'alert alert-info';
+    resBox.innerText = 'Applying schema migration...';
+
+    try {
+      const resp = await fetch("/admin/api/run-migration", { method: "POST" });
+      const data = await resp.json();
+      resBox.className = data.success ? 'alert alert-success' : 'alert alert-warning';
+      resBox.innerText = data.message || (data.success ? 'Schema 005 applied successfully!' : 'Migration completed with notices.');
+    } catch (e) {
+      resBox.className = 'alert alert-danger';
+      resBox.innerText = 'Migration error: ' + e.message;
+    }
+  }
+</script>
+{% endblock %}
+

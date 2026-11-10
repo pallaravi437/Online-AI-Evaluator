@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Lecturer Management - Admin - Online Evaluator{% endblock %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 1.5rem auto;">
+  
+  <!-- Header Bar -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span class="brand-badge">ADMIN CONTROL</span>
+        <h1 style="font-size: 1.6rem; font-weight: 700; margin: 0;">Lecturer Management & Multi-Tenant Registry</h1>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 0.25rem;">
+        Approve new faculty registrations, provision isolated tenant databases, and supervise lecturer credentials.
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="{{ url_for('admin.settings') }}" class="btn btn-secondary btn-sm">⚙️ System Settings</a>
+      <a href="{{ url_for('admin.manage_servers') }}" class="btn btn-secondary btn-sm">🗄️ Storage Matrix</a>
+    </div>
+  </div>
+
+  <!-- SECTION A: Pending Approvals -->
+  <div class="card" style="padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid #f59e0b;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.2rem;">⏳</span>
+        <h3 style="font-size: 1.2rem; font-weight: 700; margin: 0;">Pending Lecturer Approvals</h3>
+        <span class="badge badge-warning" style="font-size: 0.78rem;">{{ pending|length }} Waiting</span>
+      </div>
+    </div>
+
+    {% if pending %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">S.No</th>
+              <th>Full Name</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Subject</th>
+              <th>Mobile</th>
+              <th>Registered At</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lec in pending %}
+              <tr>
+                <td style="color: var(--text-muted); font-weight: 600;">{{ loop.index }}</td>
+                <td><strong style="color: var(--text);">{{ lec.full_name }}</strong></td>
+                <td><code>{{ lec.username }}</code></td>
+                <td>{{ lec.email }}</td>
+                <td><span class="badge badge-info">{{ lec.subject or 'General' }}</span></td>
+                <td>{{ lec.mobile or '—' }}</td>
+                <td style="font-size: 0.8rem; color: var(--text-muted);">{{ lec.registered_at | to_kolkata_time }}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                  <form action="{{ url_for('admin.approve_lecturer', lecturer_id=lec.id) }}" method="POST" style="display: inline-block;">
+                    <button type="submit" class="btn btn-success btn-sm" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">
+                      ✓ Approve
+                    </button>
+                  </form>
+                  <form action="{{ url_for('admin.reject_lecturer', lecturer_id=lec.id) }}" method="POST" style="display: inline-block; margin-left: 0.35rem;" onsubmit="return confirm('Are you sure you want to reject and remove this registration?');">
+                    <button type="submit" class="btn btn-danger btn-sm" style="padding: 0.3rem 0.75rem; font-size: 0.8rem;">
+                      ✕ Reject
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+        <span>🎉 All caught up! No pending lecturer approvals at this time.</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- SECTION B: Approved Lecturers (Active Multi-Tenants) -->
+  <div class="card" style="padding: 1.5rem; border-left: 4px solid var(--primary);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.2rem;">👨‍🏫</span>
+        <h3 style="font-size: 1.2rem; font-weight: 700; margin: 0;">Approved Lecturers (Independent Tenants)</h3>
+        <span class="badge badge-success" style="font-size: 0.78rem;">{{ approved|length }} Active</span>
+      </div>
+    </div>
+
+    {% if approved %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">S.No</th>
+              <th>Lecturer Details</th>
+              <th>Username</th>
+              <th>Subject / Course</th>
+              <th>Tenant Storage</th>
+              <th>Status</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lec in approved %}
+              <tr>
+                <td style="color: var(--text-muted); font-weight: 600;">{{ loop.index }}</td>
+                <td>
+                  <strong style="color: var(--text); display: block;">{{ lec.full_name }}</strong>
+                  <span style="font-size: 0.78rem; color: var(--text-muted);">{{ lec.email }}</span>
+                </td>
+                <td><code>{{ lec.username }}</code></td>
+                <td><span class="badge badge-info">{{ lec.subject or 'General' }}</span></td>
+                <td>
+                  <code style="font-size: 0.75rem; color: #38bdf8;">database/local_store/tenants/{{ lec.id[:12] }}...</code>
+                </td>
+                <td>
+                  {% if lec.is_active %}
+                    <span class="badge badge-success">Active Tenant</span>
+                  {% else %}
+                    <span class="badge badge-warning">Suspended</span>
+                  {% endif %}
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                  <form action="{{ url_for('admin.delete_lecturer', lecturer_id=lec.id) }}" method="POST" style="display: inline-block;" onsubmit="return confirm('Are you sure you want to remove this lecturer? All tenant references will be purged.');">
+                    <button type="submit" class="btn btn-secondary btn-sm" style="color: #f87171; border-color: rgba(248, 113, 113, 0.3); padding: 0.3rem 0.65rem; font-size: 0.78rem;">
+                      🗑️ Remove
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+        <span>No lecturers approved yet. Approve incoming registrations from the pending queue above.</span>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Multi-tenant Isolation Summary Info Card -->
+  <div style="margin-top: 1.5rem; padding: 1rem 1.25rem; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.75rem;">
+    <span style="font-size: 1.5rem;">🔒</span>
+    <div>
+      <strong style="color: var(--text);">Complete Multi-Tenant Data Isolation:</strong>
+      Each approved lecturer maintains their own database connection, Gemini/AI API key, student rosters, questions, and handwritten script submissions in their own isolated tenant namespace. Lecturers can never view or modify another faculty's records.
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

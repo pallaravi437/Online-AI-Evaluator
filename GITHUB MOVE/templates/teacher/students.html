@@ -1,0 +1,500 @@
+{% extends "base.html" %}
+
+{% block title %}Student Roster & Enrollment - BEA{% endblock %}
+
+{% block content %}
+<div class="card-header">
+  <div>
+    <h1 class="card-title">👥 Student Roster Management (60–70 Diploma Batch)</h1>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">
+      Import Excel/CSV student records, manage PINs, and maintain safe student profiles.
+    </p>
+  </div>
+
+  <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+    <a href="{{ url_for('teacher.download_student_template') }}" class="btn btn-secondary">
+      📥 Download Excel Template
+    </a>
+    <a href="{{ url_for('teacher.download_student_word_template') }}" class="btn btn-secondary">
+      📄 Download Word Template (.docx)
+    </a>
+  </div>
+</div>
+
+<!-- Upload Roster Card -->
+<div class="card" style="border-left: 4px solid var(--secondary);">
+  <h3 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0.75rem;">
+    📤 Import Students (Excel / CSV / MS Word)
+  </h3>
+  <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+    Supports <strong>Microsoft Word (<code>.docx</code>, <code>.doc</code>)</strong>, Excel (<code>.xlsx</code>), and CSV (<code>.csv</code>).
+    Smart detector automatically skips college header banners, recognizes tables, and maps Board APAAR columns (e.g. <code>PIN</code>, <code>REGN_NO</code>, <code>AADHAAR NAME</code>, <code>STUDENT NAME</code>).
+  </p>
+
+  <form action="{{ url_for('teacher.manage_students') }}" method="POST" enctype="multipart/form-data" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 250px;">
+      <label class="form-label" for="roster_file">Select student roster file (.docx, .doc, .xlsx, .csv)</label>
+      <input type="file" id="roster_file" name="roster_file" class="form-control" accept=".xlsx,.csv,.docx,.doc" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+      Parse & Preview File →
+    </button>
+  </form>
+</div>
+
+<!-- Preview & Validation Card (if file was just uploaded) -->
+{% if preview_data is not none %}
+  <div class="card" style="border: 2px solid var(--warning); background: rgba(30, 41, 59, 0.95);">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title" style="color: #fbbf24;">🔎 Import Preview & Validation Report</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          Found <strong>{{ preview_data | length }}</strong> valid rows.
+          {% if invalid_rows %}
+            <span style="color: #f87171;">⚠️ {{ invalid_rows | length }} invalid rows with issues.</span>
+          {% endif %}
+        </p>
+      </div>
+
+      {% if preview_data %}
+        <form action="{{ url_for('teacher.confirm_student_import') }}" method="POST">
+          <button type="submit" class="btn btn-success">
+            ✓ Confirm & Commit {{ preview_data | length }} Students to Database
+          </button>
+        </form>
+      {% endif %}
+    </div>
+
+    <!-- Invalid Rows Report (if any) -->
+    {% if invalid_rows %}
+      <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1.5rem;">
+        <h4 style="font-size: 0.9rem; font-weight: 700; color: #fca5a5; margin-bottom: 0.5rem;">
+          ❌ Invalid Rows (Skipped from Import):
+        </h4>
+        <ul style="padding-left: 1.25rem; font-size: 0.8rem; color: #fee2e2;">
+          {% for inv in invalid_rows %}
+            <li>
+              Row {{ inv.row_number }}: PIN: '{{ inv.pin or 'N/A' }}', Name: '{{ inv.name or 'N/A' }}' — {{ inv.errors | join(', ') }}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <!-- Preview Table with Vertical & Horizontal Drag Options -->
+    {% if preview_data %}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+        <span style="font-size: 0.8rem; color: #38bdf8;">↔️ ↕️ Click & drag anywhere on the table to pan, or scroll horizontally and vertically.</span>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">Showing all {{ preview_data | length }} parsed student records</span>
+      </div>
+
+      <div class="drag-scroll-container" style="max-height: 440px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); position: relative; cursor: grab;">
+        <table class="table" style="min-width: 900px; margin-bottom: 0;">
+          <thead>
+            <tr>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Row</th>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Student PIN</th>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Student Name</th>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Academic Year</th>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Semester</th>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Branch / Sec</th>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Phone</th>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Email</th>
+              <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap; text-align: center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in preview_data %}
+              <tr>
+                <td>{{ row.row_number or loop.index }}</td>
+                <td><strong style="color: var(--secondary); white-space: nowrap;">{{ row.pin }}</strong></td>
+                <td style="white-space: nowrap;"><strong>{{ row.full_name }}</strong></td>
+                <td style="white-space: nowrap;">{{ row.academic_year }}</td>
+                <td style="white-space: nowrap;">{{ row.semester }}</td>
+                <td style="white-space: nowrap;">{{ row.branch }} - {{ row.section }}</td>
+                <td style="white-space: nowrap;">{{ row.contact_phone or '—' }}</td>
+                <td style="white-space: nowrap;">{{ row.contact_email or '—' }}</td>
+                <td style="text-align: center; white-space: nowrap;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="openEditPreviewModal({{ loop.index0 }})" style="padding: 0.25rem 0.65rem; font-size: 0.78rem;">
+                    ✏️ Edit
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+
+<!-- Active Registered Students List with Select, Select All, Delete & Drag Options -->
+<div class="card" style="padding: 1.25rem 1.5rem;">
+  <form id="form-bulk-students" action="{{ url_for('teacher.delete_students_batch') }}" method="POST">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.75rem;">
+      <div>
+        <h3 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0.25rem;">
+          Registered Students Roster ({{ students | length }})
+        </h3>
+        <span style="font-size: 0.8rem; color: #38bdf8;">
+          ↔️ ↕️ Click & drag or use mouse wheel to scroll horizontally and vertically across all records.
+        </span>
+      </div>
+
+      <!-- Batch Actions Bar -->
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="selectAllToggle()" id="btn-select-all-toggle">
+          ☑️ Select All
+        </button>
+        <button type="submit" id="btn-delete-selected" class="btn btn-danger btn-sm" style="display: none;" onclick="return confirmBatchDelete()">
+          🗑️ Delete Selected (<span id="selected-badge-count">0</span>)
+        </button>
+      </div>
+    </div>
+
+    <div class="drag-scroll-container" style="max-height: 480px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); position: relative; cursor: grab;">
+      <table class="table" style="min-width: 1020px; margin-bottom: 0;">
+        <thead>
+          <tr>
+            <th style="width: 45px; position: sticky; top: 0; background: #1e293b; z-index: 6; box-shadow: 0 2px 4px rgba(0,0,0,0.4); text-align: center;">
+              <input type="checkbox" id="master-select-all" onchange="handleMasterCheckbox(this)" title="Select / Deselect All">
+            </th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">S.No</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Student Name</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Unique PIN</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Branch & Sec</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Semester</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Academic Year</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Contact Phone</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Contact Email</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;">Status</th>
+            <th style="position: sticky; top: 0; background: #1e293b; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap; text-align: center;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for st in students %}
+            <tr>
+              <td style="text-align: center;">
+                <input type="checkbox" name="selected_students" value="{{ st.id or st.pin }}" class="student-row-checkbox" onchange="updateBatchDeleteUI()">
+              </td>
+              <td>{{ loop.index }}</td>
+              <td style="white-space: nowrap;"><strong>{{ st.full_name }}</strong></td>
+              <td style="white-space: nowrap;"><code style="color: var(--secondary); font-weight: 700;">{{ st.pin }}</code></td>
+              <td style="white-space: nowrap;">{{ st.branch }} (Sec {{ st.section }})</td>
+              <td style="white-space: nowrap;">{{ st.semester }}</td>
+              <td style="white-space: nowrap;">{{ st.academic_year }}</td>
+              <td style="white-space: nowrap;">{{ st.contact_phone or '—' }}</td>
+              <td style="white-space: nowrap;">{{ st.contact_email or '—' }}</td>
+              <td style="white-space: nowrap;">
+                {% if st.is_active %}
+                  <span class="badge badge-success">Active</span>
+                {% else %}
+                  <span class="badge badge-danger">Inactive</span>
+                {% endif %}
+              </td>
+              <td style="text-align: center; white-space: nowrap;">
+                <div style="display: inline-flex; gap: 0.35rem; align-items: center;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="openEditStudentModal({{ loop.index0 }})" style="padding: 0.25rem 0.6rem; font-size: 0.78rem;">
+                    ✏️ Edit
+                  </button>
+                  <button type="button" class="btn btn-danger btn-sm" onclick="deleteSingleStudent('{{ st.id or st.pin }}', '{{ st.full_name }}', '{{ st.pin }}')" style="padding: 0.25rem 0.55rem; font-size: 0.78rem;" title="Delete Student">
+                    🗑️
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="11" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                No students enrolled yet. Upload a roster file (.docx, .doc, .xlsx, .csv) above.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+
+  <!-- Hidden single-delete form -->
+  <form id="form-single-delete" action="{{ url_for('teacher.delete_students_batch') }}" method="POST" style="display: none;">
+    <input type="hidden" name="student_id" id="single-delete-student-id">
+  </form>
+</div>
+
+<!-- Modal: Edit Pending Preview Row -->
+<div id="modal-edit-preview" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 620px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div class="card-header">
+      <h3 class="card-title">✏️ Edit Import Preview Student</h3>
+      <button onclick="document.getElementById('modal-edit-preview').style.display='none'" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <form id="form-edit-preview" method="POST">
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="prev_pin">Student PIN</label>
+          <input type="text" id="prev_pin" name="pin" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prev_name">Full Name</label>
+          <input type="text" id="prev_name" name="full_name" class="form-control" required>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="prev_branch">Branch</label>
+          <input type="text" id="prev_branch" name="branch" class="form-control" value="ECE" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prev_section">Section</label>
+          <input type="text" id="prev_section" name="section" class="form-control" value="A" required>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="prev_semester">Semester</label>
+          <input type="text" id="prev_semester" name="semester" class="form-control" value="Semester 1" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prev_year">Academic Year</label>
+          <input type="text" id="prev_year" name="academic_year" class="form-control" value="2026-2027" required>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="prev_phone">Contact Phone</label>
+          <input type="text" id="prev_phone" name="contact_phone" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prev_email">Contact Email</label>
+          <input type="email" id="prev_email" name="contact_email" class="form-control">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-edit-preview').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Preview Record →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Edit Registered Student Profile -->
+<div id="modal-edit-student" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div class="card" style="max-width: 620px; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div class="card-header">
+      <h3 class="card-title">✏️ Edit Registered Student Profile</h3>
+      <button onclick="document.getElementById('modal-edit-student').style.display='none'" class="btn btn-sm btn-secondary">&times;</button>
+    </div>
+
+    <form id="form-edit-student" method="POST">
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="edit_st_pin">Unique PIN</label>
+          <input type="text" id="edit_st_pin" name="pin" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_st_name">Student Full Name</label>
+          <input type="text" id="edit_st_name" name="full_name" class="form-control" required>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="edit_st_branch">Branch</label>
+          <input type="text" id="edit_st_branch" name="branch" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_st_section">Section</label>
+          <input type="text" id="edit_st_section" name="section" class="form-control" required>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="edit_st_semester">Semester</label>
+          <input type="text" id="edit_st_semester" name="semester" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_st_year">Academic Year</label>
+          <input type="text" id="edit_st_year" name="academic_year" class="form-control" required>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label class="form-label" for="edit_st_phone">Contact Phone</label>
+          <input type="text" id="edit_st_phone" name="contact_phone" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_st_email">Contact Email</label>
+          <input type="email" id="edit_st_email" name="contact_email" class="form-control">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edit_st_status">Enrollment Status</label>
+        <select id="edit_st_status" name="is_active" class="form-control">
+          <option value="1">Active (Permitted to take BEA tests)</option>
+          <option value="0">Inactive / Suspended</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-edit-student').style.display='none'">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update Student Profile →</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const previewRows = {{ (preview_data or []) | tojson }};
+  const registeredStudents = {{ (students or []) | tojson }};
+
+  function openEditPreviewModal(idx) {
+    if (idx < 0 || idx >= previewRows.length) return;
+    const item = previewRows[idx];
+
+    const form = document.getElementById("form-edit-preview");
+    form.action = `/teacher/students/edit-preview/${idx}`;
+
+    document.getElementById("prev_pin").value = item.pin || "";
+    document.getElementById("prev_name").value = item.full_name || "";
+    document.getElementById("prev_branch").value = item.branch || "ECE";
+    document.getElementById("prev_section").value = item.section || "A";
+    document.getElementById("prev_semester").value = item.semester || "Semester 1";
+    document.getElementById("prev_year").value = item.academic_year || "2026-2027";
+    document.getElementById("prev_phone").value = item.contact_phone || "";
+    document.getElementById("prev_email").value = item.contact_email || "";
+
+    document.getElementById("modal-edit-preview").style.display = "flex";
+  }
+
+  function openEditStudentModal(idx) {
+    if (idx < 0 || idx >= registeredStudents.length) return;
+    const st = registeredStudents[idx];
+
+    const form = document.getElementById("form-edit-student");
+    form.action = `/teacher/students/edit/${st.id || st.pin}`;
+
+    document.getElementById("edit_st_pin").value = st.pin || "";
+    document.getElementById("edit_st_name").value = st.full_name || "";
+    document.getElementById("edit_st_branch").value = st.branch || "ECE";
+    document.getElementById("edit_st_section").value = st.section || "A";
+    document.getElementById("edit_st_semester").value = st.semester || "Semester 1";
+    document.getElementById("edit_st_year").value = st.academic_year || "2026-2027";
+    document.getElementById("edit_st_phone").value = st.contact_phone || "";
+    document.getElementById("edit_st_email").value = st.contact_email || "";
+    document.getElementById("edit_st_status").value = st.is_active ? "1" : "0";
+
+    document.getElementById("modal-edit-student").style.display = "flex";
+  }
+
+  function deleteSingleStudent(id, name, pin) {
+    if (confirm(`⚠️ Are you sure you want to delete ${name} (${pin}) from the registered roster?`)) {
+      document.getElementById("single-delete-student-id").value = id || pin;
+      document.getElementById("form-single-delete").submit();
+    }
+  }
+
+  function handleMasterCheckbox(master) {
+    const checkboxes = document.querySelectorAll(".student-row-checkbox");
+    checkboxes.forEach(cb => { cb.checked = master.checked; });
+    updateBatchDeleteUI();
+  }
+
+  function selectAllToggle() {
+    const checkboxes = document.querySelectorAll(".student-row-checkbox");
+    const master = document.getElementById("master-select-all");
+    const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+    const targetState = anyUnchecked;
+    checkboxes.forEach(cb => { cb.checked = targetState; });
+    if (master) master.checked = targetState;
+    updateBatchDeleteUI();
+  }
+
+  function updateBatchDeleteUI() {
+    const checkboxes = document.querySelectorAll(".student-row-checkbox:checked");
+    const count = checkboxes.length;
+    const btn = document.getElementById("btn-delete-selected");
+    const badge = document.getElementById("selected-badge-count");
+    const selectAllBtn = document.getElementById("btn-select-all-toggle");
+    const master = document.getElementById("master-select-all");
+    const allCheckboxes = document.querySelectorAll(".student-row-checkbox");
+
+    if (badge) badge.innerText = count;
+    if (btn) btn.style.display = count > 0 ? "inline-flex" : "none";
+
+    if (master && allCheckboxes.length > 0) {
+      master.checked = (count === allCheckboxes.length);
+    }
+    if (selectAllBtn) {
+      selectAllBtn.innerText = (count === allCheckboxes.length && count > 0) ? "✖️ Deselect All" : "☑️ Select All";
+    }
+  }
+
+  function confirmBatchDelete() {
+    const count = document.querySelectorAll(".student-row-checkbox:checked").length;
+    if (count === 0) {
+      alert("Please select at least one student to delete.");
+      return false;
+    }
+    return confirm(`⚠️ Are you sure you want to permanently delete ${count} selected student(s) from the roster? This cannot be undone.`);
+  }
+
+  // Smooth click & drag (horizontal + vertical pan) for wide and long tables
+  function enableDragScroll(selector) {
+    const containers = document.querySelectorAll(selector);
+    containers.forEach(slider => {
+      let isDown = false;
+      let startX, startY, scrollLeft, scrollTop;
+
+      slider.addEventListener('mousedown', (e) => {
+        if (['BUTTON', 'A', 'INPUT', 'SELECT'].includes(e.target.tagName)) return;
+        isDown = true;
+        slider.style.cursor = 'grabbing';
+        slider.style.userSelect = 'none';
+        startX = e.pageX - slider.offsetLeft;
+        startY = e.pageY - slider.offsetTop;
+        scrollLeft = slider.scrollLeft;
+        scrollTop = slider.scrollTop;
+      });
+
+      slider.addEventListener('mouseleave', () => {
+        isDown = false;
+        slider.style.cursor = 'grab';
+        slider.style.removeProperty('user-select');
+      });
+
+      slider.addEventListener('mouseup', () => {
+        isDown = false;
+        slider.style.cursor = 'grab';
+        slider.style.removeProperty('user-select');
+      });
+
+      slider.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - slider.offsetLeft;
+        const y = e.pageY - slider.offsetTop;
+        const walkX = (x - startX) * 1.5;
+        const walkY = (y - startY) * 1.5;
+        slider.scrollLeft = scrollLeft - walkX;
+        slider.scrollTop = scrollTop - walkY;
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    enableDragScroll(".drag-scroll-container");
+    updateBatchDeleteUI();
+  });
+</script>
+{% endblock %}
