@@ -1,0 +1,49 @@
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets/
+
+# Python virtual environment and caches
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Uploaded student scripts & local media (all scripts belong strictly to Supabase Private Storage)
+uploads/
+temp_uploads/
+student_scripts/
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.webp
+!static/images/default-*.png
+!static/images/logo.png
+
+# Student private records & local backups
+GITHUB MOVE/
+database/local_store/
+scratch/
+private_records/
+backups/
+*.bak
+*.dump
+*.csv.private
+*.xlsx.private
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

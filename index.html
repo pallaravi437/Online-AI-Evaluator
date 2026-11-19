@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Online AI Evaluator - Multimodal Academic Assessment Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #0f172a;
+      --border: rgba(255, 255, 255, 0.1);
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, var(--bg) 60%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 840px;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3rem 2.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--cyan);
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.4rem;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, var(--cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+    .notice {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+      text-align: left;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: #fde68a;
+    }
+    .notice strong { color: #fbbf24; }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+      text-align: left;
+    }
+    .feat-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+    .feat-card span { font-size: 1.5rem; display: block; margin-bottom: 0.5rem; }
+    .feat-card strong { color: #f8fafc; font-size: 0.95rem; display: block; margin-bottom: 0.25rem; }
+    .feat-card p { font-size: 0.8rem; margin: 0; color: var(--text-muted); }
+    .btn-group {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.85rem 1.75rem;
+      border-radius: 10px;
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: #cbd5e1;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="badge">
+      <span>✨</span> Full-Stack Python & Flask Application
+    </div>
+    <h1>Online AI Evaluator</h1>
+    <p>
+      An intelligent multi-tenant examination & multimodal script evaluation platform powered by Google Gemini Vision OCR, multi-database routing, and rubric grading.
+    </p>
+
+    <div class="notice">
+      ℹ️ <strong>Backend Server Notice:</strong>
+      This application is a <strong>Python Flask Web Application</strong> (requiring a Python backend runtime for sessions, Bcrypt auth, and AI evaluation). 
+      GitHub Pages only hosts static files. To deploy and use the live backend for free, deploy it to <strong>Render</strong> or run it locally using the repository source.
+    </div>
+
+    <div class="features">
+      <div class="feat-card">
+        <span>👁️</span>
+        <strong>Handwritten Script OCR</strong>
+        <p>Multimodal vision AI transcribes and grades student handwritten exams.</p>
+      </div>
+      <div class="feat-card">
+        <span>👨‍🏫</span>
+        <strong>Multi-Tenant Lecturers</strong>
+        <p>Each faculty member maintains private databases, student rosters, and API keys.</p>
+      </div>
+      <div class="feat-card">
+        <span>⚡</span>
+        <strong>Instant MCQ Grading</strong>
+        <p>Zero AI latency objective grading with full technical explanations.</p>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <a href="https://github.com/pallaravi437/Online-AI-Evaluator" class="btn btn-primary" target="_blank">
+        📦 View Source Code on GitHub →
+      </a>
+      <a href="https://dashboard.render.com" class="btn btn-secondary" target="_blank">
+        🚀 Deploy Free on Render →
+      </a>
+    </div>
+  </div>
+</body>
+</html>
+
